@@ -10,6 +10,9 @@
  * 3. local        — demonstração no localStorage (LocalBackend).
  *
  * O servidor sempre responde no formato { ok, data } ou { ok, erro }.
+ *
+ * Toda chamada carrega junto a chave de acesso digitada pelo usuário (que
+ * fica guardada só no navegador). Sem a chave, o servidor recusa tudo.
  */
 var Api = (function () {
   var PREFIXO_CALLBACK = '__sistemaNotas';
@@ -21,6 +24,61 @@ var Api = (function () {
   var transporte = null; // 'http' | 'jsonp' | null (ainda não testado)
   var testeEmAndamento = null;
   var contadorJsonp = 0;
+
+  /* ------------------------------------------------------------------ */
+  /* Chave de acesso                                                     */
+  /* ------------------------------------------------------------------ */
+
+  var CHAVE_ARMAZENAMENTO = 'sistemaNotas.chaveAcesso';
+  var chaveMemoria = '';
+  var aoFaltarChave = null;
+
+  /**
+   * A chave nunca vai para o repositório: fica apenas no navegador, depois
+   * que o usuário digita na primeira abertura (ou em armazenamento
+   * bloqueado, onde vale só nesta sessão).
+   */
+  function chaveAtual() {
+    try {
+      var guardada = window.localStorage.getItem(CHAVE_ARMAZENAMENTO);
+      if (guardada) return guardada;
+    } catch (erro) {
+      // Aba anônima ou armazenamento bloqueado: vale o que está em memória.
+    }
+    return chaveMemoria;
+  }
+
+  function definirChave(valor) {
+    chaveMemoria = String(valor === null || valor === undefined ? '' : valor).trim();
+    try {
+      if (chaveMemoria) {
+        window.localStorage.setItem(CHAVE_ARMAZENAMENTO, chaveMemoria);
+      } else {
+        window.localStorage.removeItem(CHAVE_ARMAZENAMENTO);
+      }
+    } catch (erro) {
+      // Sem localStorage a chave vale apenas para esta sessão.
+    }
+    return chaveMemoria;
+  }
+
+  /** Requisição padrão: toda chamada carrega a chave junto. */
+  function montarRequisicao(nome, argumentos) {
+    return {
+      action: nome,
+      args: argumentos || [],
+      chave: chaveAtual()
+    };
+  }
+
+  function avisarFaltaDeChave(erro) {
+    if (!erro || !erro.__chave || typeof aoFaltarChave !== 'function') return;
+    try {
+      aoFaltarChave(erro);
+    } catch (erroAviso) {
+      // O aviso nunca pode esconder o erro original.
+    }
+  }
 
   /* ------------------------------------------------------------------ */
   /* Ambiente                                                            */
@@ -64,9 +122,19 @@ var Api = (function () {
     var args = argumentos || [];
     var ambiente = modo();
 
-    if (ambiente === 'local') return chamarLocal(nome, args);
-    if (ambiente === 'apps-script') return chamarBridge(nome, args);
-    return chamarNuvem(nome, args);
+    var promessa;
+    if (ambiente === 'local') {
+      promessa = chamarLocal(nome, args);
+    } else if (ambiente === 'apps-script') {
+      promessa = chamarBridge(nome, args);
+    } else {
+      promessa = chamarNuvem(nome, args);
+    }
+
+    return promessa.catch(function (erro) {
+      avisarFaltaDeChave(erro);
+      throw erro;
+    });
   }
 
   function chamarLocal(nome, argumentos) {
@@ -95,30 +163,44 @@ var Api = (function () {
           }
         })
         .withFailureHandler(function (erro) {
-          rejeitar(
-            new Error(
-              erro && erro.message
-                ? erro.message
-                : 'Falha de comunicação com o servidor. Tente novamente.'
-            )
-          );
+          var mensagem = erro && erro.message
+            ? erro.message
+            : 'Falha de comunicação com o servidor. Tente novamente.';
+          // Backend antigo: apiExecutar ainda não existe no projeto.
+          if (/not found|não encontrada|não existe/i.test(mensagem)) {
+            mensagem =
+              'O backend publicado é antigo e ainda não tem a chave de ' +
+              'acesso. Cole o appsscript.txt atual no editor, salve e ' +
+              'publique uma nova versão da implantação.';
+          }
+          rejeitar(new Error(mensagem));
         });
 
-      if (typeof runner[nome] !== 'function') {
-        rejeitar(new Error('Função do servidor não encontrada: ' + nome));
+      if (typeof runner.apiExecutar !== 'function') {
+        rejeitar(
+          new Error(
+            'O backend publicado é antigo e ainda não tem a chave de ' +
+            'acesso. Cole o appsscript.txt atual no editor, salve e ' +
+            'publique uma nova versão da implantação.'
+          )
+        );
         return;
       }
-      runner[nome].apply(null, argumentos || []);
+
+      runner.apiExecutar(nome, argumentos || [], chaveAtual());
     });
   }
 
   function interpretar(resposta) {
     if (!resposta || resposta.ok !== true) {
-      throw new Error(
+      var erro = new Error(
         resposta && resposta.erro
           ? resposta.erro
           : 'O servidor não retornou uma resposta válida.'
       );
+      // O servidor marca os erros de autenticação com o código "chave".
+      if (resposta && resposta.codigo === 'chave') erro.__chave = true;
+      throw erro;
     }
     return resposta.data;
   }
@@ -187,7 +269,7 @@ var Api = (function () {
       method: 'POST',
       // text/plain evita o preflight de CORS (o Apps Script não responde OPTIONS).
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action: nome, args: argumentos || [] }),
+      body: JSON.stringify(montarRequisicao(nome, argumentos)),
       redirect: 'follow',
       signal: controlador ? controlador.signal : undefined
     })
@@ -220,7 +302,7 @@ var Api = (function () {
 
   function enviarPorJsonp(nome, argumentos) {
     var base = urlConfigurada();
-    var corpo = JSON.stringify({ action: nome, args: argumentos || [] });
+    var corpo = JSON.stringify(montarRequisicao(nome, argumentos));
     var codificado = encodeURIComponent(corpo);
 
     if (base.length + codificado.length + 80 <= LIMITE_URL_JSONP) {
@@ -313,17 +395,16 @@ var Api = (function () {
       cadeia = cadeia.then(function () {
         return jsonp(
           base,
-          JSON.stringify({
-            action: 'apiParteEnvio',
-            args: [
+          JSON.stringify(
+            montarRequisicao('apiParteEnvio', [
               {
                 token: token,
                 indice: numero,
                 total: partes.length,
                 parte: parte
               }
-            ]
-          })
+            ])
+          )
         ).then(interpretar);
       });
     });
@@ -331,7 +412,9 @@ var Api = (function () {
     return cadeia.then(function () {
       return jsonp(
         base,
-        JSON.stringify({ action: 'apiFinalizarEnvio', args: [{ token: token }] })
+        JSON.stringify(
+          montarRequisicao('apiFinalizarEnvio', [{ token: token }])
+        )
       );
     });
   }
@@ -374,6 +457,19 @@ var Api = (function () {
   return {
     local: function () {
       return modo() === 'local';
+    },
+    chave: function () {
+      return chaveAtual();
+    },
+    definirChave: function (valor) {
+      return definirChave(valor);
+    },
+    semChave: function () {
+      var ambiente = modo();
+      return (ambiente === 'nuvem' || ambiente === 'apps-script') && !chaveAtual();
+    },
+    definirAoFaltarChave: function (funcao) {
+      aoFaltarChave = typeof funcao === 'function' ? funcao : null;
     },
     conexao: function () {
       return {
