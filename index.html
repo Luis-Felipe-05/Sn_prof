@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#111827">
+  <title>Sistema de Notas</title>
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/views.css">
+  <link rel="stylesheet" href="css/responsive.css">
+</head>
+<body>
+  <div class="modo-local" id="modo-local" hidden>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M10.3 3.6 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.6a2 2 0 0 0-3.4 0Z"></path>
+      <path d="M12 9v4"></path>
+      <path d="M12 17h.01"></path>
+    </svg>
+    <span>
+      Modo demonstração: os dados ficam apenas neste navegador.
+      Para usar o Google Sheets, cole a URL do Apps Script em
+      <strong>js/config.js</strong> — ou abra o link <strong>/exec</strong>.
+    </span>
+  </div>
+
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+            <path d="m9 9 2 2 4-4"></path>
+          </svg>
+        </div>
+        <div>
+          <div class="brand-title">Sistema de Notas</div>
+          <div class="brand-sub">Lançamento e boletim</div>
+        </div>
+      </div>
+
+      <nav class="nav" aria-label="Navegação principal">
+        <span class="nav-label">Menu</span>
+        <button type="button" class="nav-item ativo" data-nav="turmas">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3" y="3" width="7" height="7" rx="1.5"></rect>
+            <rect x="14" y="3" width="7" height="7" rx="1.5"></rect>
+            <rect x="3" y="14" width="7" height="7" rx="1.5"></rect>
+            <rect x="14" y="14" width="7" height="7" rx="1.5"></rect>
+          </svg>
+          Turmas
+        </button>
+        <button type="button" class="nav-item" data-nav="backup">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9z"></path>
+            <path d="M12 13v8"></path>
+            <path d="m8 17 4-4 4 4"></path>
+          </svg>
+          Backup
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="sidebar-status">
+          <strong>Backup semanal</strong>
+          <div class="status-line">
+            <span class="status-dot" id="sidebar-backup-dot"></span>
+            <span id="sidebar-backup-texto">Verificando...</span>
+          </div>
+        </div>
+        <div class="sidebar-version" id="sidebar-versao">Sistema de Notas</div>
+      </div>
+    </aside>
+
+    <div class="main">
+      <main class="content" id="conteudo" aria-live="polite">
+        <div class="loading"><span class="spinner"></span> Carregando sistema...</div>
+      </main>
+    </div>
+  </div>
+
+  <div id="modal-root"></div>
+  <div class="toast-stack" id="toast-stack" aria-live="polite" aria-atomic="false"></div>
+
+  <script src="js/config.js"></script>
+  <script src="js/local-backend.js"></script>
+  <script src="js/api-client.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/views/turmas.js"></script>
+  <script src="js/views/turma.js"></script>
+  <script src="js/views/alunos.js"></script>
+  <script src="js/views/medias.js"></script>
+  <script src="js/views/notas.js"></script>
+  <script src="js/views/boletim.js"></script>
+  <script src="js/views/backup.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

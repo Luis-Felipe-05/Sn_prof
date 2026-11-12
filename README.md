@@ -1,0 +1,203 @@
+# Sistema de Notas — Google Sheets + Apps Script
+
+Sistema de lançamento de notas e emissão de boletim para professores, feito com
+HTML, CSS e JavaScript puro, Google Sheets como banco de dados e Google Apps
+Script como integração. Cada professor implanta a própria cópia; não há login
+próprio nem banco de dados externo.
+
+**Sem build.** A nuvem é configurada **uma única vez**, colando a URL do Apps
+Script na variável `URL_APPS_SCRIPT` de `js/config.js`. Depois disso, qualquer
+computador que tenha essa pasta (ou o site publicado com ela) abre o sistema
+direto no Google Sheets, **sem login e sem configurar nada de novo**.
+
+## Como funciona
+
+| Forma de abrir | O que configura | Precisa de login? |
+| --- | --- | --- |
+| `index.html` + `js/config.js` | a URL `/exec` no arquivo, uma vez | não |
+| Link `/exec` do Apps Script | nada | não |
+
+As duas usam a mesma planilha e a mesma pasta de backups. A primeira é a que
+guarda a configuração no arquivo; a segunda é o atalho sem arquivo nenhum.
+
+## Começando (uma vez, ~10 minutos)
+
+1. Abra <https://script.google.com>, crie um **Novo projeto** e renomeie para
+   **Sistema de Notas**.
+2. Apague o conteúdo de `Código.gs` e cole todo o `appsscript.txt`. Salve.
+3. **Implantar → Nova implantação → Aplicativo da Web**, com:
+   - **Executar como:** `Eu`
+   - **Quem tem acesso:** `Qualquer pessoa`
+4. Autorize os escopos e copie a URL que termina em **`/exec`**.
+
+> **Por que “Qualquer pessoa”?** É o que permite abrir o sistema **sem estar
+> logado** na sua conta. O script continua rodando com a sua conta (e a sua
+> planilha), mas quem abre não precisa entrar no Google. A URL passa a ser a
+> chave de acesso: guarde-a como uma senha.
+
+### Forma principal — a URL em `js/config.js`
+
+1. Abra `js/config.js` e cole a URL entre as aspas:
+
+   ```js
+   var CONFIG = {
+     URL_APPS_SCRIPT: 'https://script.google.com/macros/s/AKfycb.../exec',
+     TEMPO_LIMITE_MS: 90000
+   };
+   ```
+
+2. Salve e abra `index.html` (duplo clique). O rodapé da barra lateral mostra
+   `· nuvem` e a faixa amarela de demonstração não aparece.
+3. Leve a pasta para qualquer computador — ou publique o site (veja abaixo).
+   O `config.js` vai junto, então a nuvem já está configurada desde a primeira
+   abertura. Não há nada para preencher no navegador.
+
+O `js/config.js` faz parte do site publicado. Se você estiver com uma cópia
+apenas do código (sem esse arquivo), crie-o a partir do modelo que fica na pasta
+local:
+
+```bash
+copy js\config.example.js js\config.js     # Windows
+cp js/config.example.js js/config.js       # Linux/macOS
+```
+
+Depois é só colar a URL e salvar. Sem esse arquivo (ou com a URL vazia), o
+`index.html` abre em **modo demonstração**, com os dados no `localStorage`.
+
+### Forma alternativa — o link `/exec`, sem arquivo
+
+Se você também criar o arquivo HTML **`Index`** no projeto (menu **+** →
+**HTML**), com o conteúdo de `apps-script/Index.html`, o próprio link `/exec`
+abre a interface. Aí não é preciso `js/config.js` nem pasta nenhuma: funciona em
+qualquer computador ou celular, também sem login.
+
+Sem o `Index`, o link mostra a página **“No ar — API v1.0.0”**. Nesse caso, use
+a forma principal com `index.html` + `js/config.js`.
+
+## “A nuvem fica salva depois de configurar?”
+
+Sim. Nada fica no `localStorage`, em cookies ou no cache do navegador:
+
+| Informação | Onde fica | Limpar o navegador? |
+| --- | --- | --- |
+| URL do sistema | `js/config.js` (o arquivo) | não afeta |
+| ID da planilha de dados | Propriedades do script, no Apps Script | não afeta |
+| Quem pode acessar | Implantação / conta Google | não afeta |
+
+Trocar de aparelho, usar aba anônima, limpar cache ou reinstalar o navegador não
+muda nada: basta abrir a mesma pasta ou o mesmo site. Só a exclusão da
+implantação (o link muda) ou da planilha (restaure um backup) quebra a ligação.
+
+## Publicar num site (opcional)
+
+Para abrir por um **link** em qualquer computador, sem levar a pasta, publique
+o site em GitHub Pages, Netlify ou Vercel. O `.gitignore` já está preparado
+para o **site enxuto**: versiona `index.html`, `css/`, `js/` (incluindo o
+`config.js`), `README.md` e ele mesmo; o backend, a documentação e os scripts
+ficam apenas na pasta local.
+
+1. Preencha `js/config.js` com a URL que termina em `/exec`.
+2. Faça `git add .`, `git commit` e `git push`.
+3. No GitHub, abra **Settings → Pages** e publique a branch `main`, pasta
+   **`/ (root)`**.
+
+Não escolha a pasta `/docs`: ela guarda a fonte do guia e não é versionada.
+
+> **Atenção:** ao publicar, a URL do Apps Script fica visível no código da
+> página. Com acesso “Qualquer pessoa”, qualquer um que descobrir o site
+> consegue ler e alterar as notas. Para dados de alunos, prefira manter a pasta
+> privada (USB ou Drive) ou usar o link `/exec`, que não fica indexado.
+
+## O que o sistema faz
+
+- Turmas organizadas por ano, com várias matérias por turma.
+- Alunos adicionados manualmente ou importados por lista, CSV/TXT ou link do
+  Google Sheets, com modelo de planilha pronto em `modelos/`.
+- Avaliações ilimitadas por matéria e bimestre, com pesos em `%`.
+- Média ponderada do bimestre e média final pela média aritmética dos bimestres
+  com notas (o “quinto conceito”).
+- Médias editáveis: clique na média do bimestre ou na média final para digitar
+  um valor manual; em branco, o sistema volta ao cálculo automático.
+- Boletim por matéria e resumo geral, com indicadores de resultado parcial e
+  impressão.
+- Backup semanal em JSON no Google Drive e restauração de emergência pela
+  interface, com backup de segurança automático antes de restaurar.
+
+## Documentação
+
+> Estes arquivos ficam na pasta local e **não** são publicados no GitHub Pages.
+
+- [`SISTEMA.md`](SISTEMA.md) — arquitetura, modelo de dados, regras de cálculo,
+  importação, backup, conexão com a nuvem, segurança e problemas comuns.
+- `Guia-Nuvem-e-Backup.pdf` — guia ilustrado de ativação da nuvem e do backup.
+  A fonte editável está em `docs/guia-nuvem-backup.html`; o PDF é gerado pelo
+  Chrome com `--print-to-pdf`.
+
+## Estrutura
+
+```
+index.html             interface em arquivos separados (abre com config.js)
+css/                   estilos separados por responsabilidade
+js/                    frontend separado por funcionalidade (views/ incluído)
+js/config.js           URL do Apps Script (vai para o repositório do site)
+js/config.example.js   modelo local, sem URL (não vai para o repositório)
+apps-script/
+  Index.html           interface empacotada em um HTML único (opcional, p/ /exec)
+appsscript.txt         backend completo do Apps Script (Código.gs)
+appsscript.json        manifesto do projeto (fuso, escopos e web app)
+scripts/empacotar.js   regenera apps-script/Index.html (opcional)
+docs/
+  guia-nuvem-backup.html  fonte do guia em PDF
+modelos/
+  modelo-importacao-alunos.xlsx  planilha pronta para preencher
+  modelo-importacao-alunos.csv   mesmo conteúdo em CSV
+  LEIA-ME.txt        instruções resumidas do modelo
+.gitignore             o que vai e o que não vai para o GitHub Pages
+```
+
+No repositório público entram apenas `index.html`, `css/`, `js/`, `README.md`,
+`modelos/` e `.gitignore`. Backend, guia, PDF e scripts continuam na pasta local
+para manutenção, mas não são publicados.
+
+Depois de alterar `css/` ou `js/`, regenere o pacote que vai para o `/exec`:
+
+```bash
+node scripts/empacotar.js
+```
+
+É Node.js puro, sem `npm install` e sem pasta `dist/`. Não é necessário para
+usar o sistema nem para o fluxo com `js/config.js`.
+
+## Publicar no GitHub
+
+O repositório é o **site enxuto**. O `.gitignore` versiona `index.html`,
+`css/`, `js/` (com `js/config.js`), `README.md`, `modelos/` (os três arquivos
+do modelo) e ele mesmo, e bloqueia:
+
+- `js/config.js` **não** é bloqueado: ele precisa ir junto para o site abrir
+  conectado (veja o aviso de segurança acima);
+- `.clasprc.json` e `.clasp.json` — credenciais e configuração local do clasp;
+- `backup-notas-*.json`, `backups/`, `*.csv`, `*.xlsx` — dados reais de alunos
+  (os arquivos de `modelos/` são a exceção: são nomes fictícios e vão junto);
+- `appsscript.txt`, `appsscript.json`, `apps-script/`, `scripts/`, `docs/`,
+  `Guia-Nuvem-e-Backup.pdf`, `SISTEMA.md` e `js/config.example.js` — ficam só
+  na pasta local;
+- `node_modules/`, `dist/`, arquivos de sistema e temporários.
+
+Antes do primeiro `git push`, confira com `git status` se nada disso aparece na
+lista. Se um arquivo sensível já tiver sido commitado, apagar depois não basta:
+ele continua no histórico e a implantação deve ser revogada (criar outra).
+
+```bash
+git init
+git add .
+git commit -m "Sistema de Notas"
+```
+
+## Limitações
+
+- Um professor por implantação; sem multiusuário.
+- Quatro bimestres fixos e notas entre 0 e 10.
+- Limite de 16 backups e cotas do Apps Script/Drive.
+- Com acesso **Qualquer pessoa**, a URL é a única credencial: quem tiver o link
+  acessa os dados. Não divulgue o endereço.

@@ -1,0 +1,105 @@
+# ==========================================================================
+# Sistema de Notas — repositório do GitHub Pages (site enxuto)
+# --------------------------------------------------------------------------
+# PRECISAM ser commitados para o site funcionar:
+#   index.html
+#   css/            (todos os arquivos)
+#   js/             (todos, INCLUSIVE js/config.js)
+#   README.md
+#   modelos/        (XLSX, CSV e LEIA-ME do modelo de importação)
+#   .gitignore
+#
+# O js/config.js NÃO é ignorado de propósito: ele leva a URL da implantação
+# para o site publicado. Sem ele, o GitHub Pages abre em modo demonstração.
+# Por isso a URL fica visível no código da página e vale como senha de
+# acesso à sua planilha. Não divulgue o endereço do site/repositório.
+#
+# Todo o resto desta lista fica apenas na sua pasta local.
+# ==========================================================================
+
+# --------------------------------------------------------------------------
+# 1. Dados de alunos — NUNCA vão para o repositório (privacidade / LGPD)
+# --------------------------------------------------------------------------
+# Backups baixados do Drive, listas exportadas e planilhas de origem.
+backup-notas-*.json
+backup-*.json
+backups/
+dados/
+*.csv
+*.tsv
+*.xlsx
+*.xls
+*.ods
+
+# --------------------------------------------------------------------------
+# 2. Credenciais da sua conta Google
+# --------------------------------------------------------------------------
+# Tokens do clasp, variáveis de ambiente e afins.
+.clasprc.json
+.clasprc.json.*
+.clasp.json
+.claspignore
+.env
+.env.*
+!.env.example
+
+# --------------------------------------------------------------------------
+# 3. Backend e materiais que o GitHub Pages não serve
+# --------------------------------------------------------------------------
+# O site publicado usa só index.html + css/ + js/. O backend já está
+# implantado no Apps Script; estes arquivos continuam na pasta local para
+# consulta e manutenção, mas não precisam ir para o repositório.
+appsscript.txt
+appsscript.json
+apps-script/
+scripts/
+docs/
+Guia-Nuvem-e-Backup.pdf
+SISTEMA.md
+js/config.example.js
+
+# --------------------------------------------------------------------------
+# 4. Modelos de importação (nomes fictícios) — estes VÃO para o repositório
+# --------------------------------------------------------------------------
+# As regras *.csv e *.xlsx acima protegem dados reais de alunos. Estes
+# arquivos são modelos com nomes de exemplo e devem acompanhar o site.
+!modelos/
+!modelos/modelo-importacao-alunos.csv
+!modelos/modelo-importacao-alunos.xlsx
+!modelos/LEIA-ME.txt
+
+# --------------------------------------------------------------------------
+# 5. Dependências, build e artefatos
+# --------------------------------------------------------------------------
+node_modules/
+dist/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# --------------------------------------------------------------------------
+# 6. Sistema operacional e editores
+# --------------------------------------------------------------------------
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.orig
+*.rej
+
+# --------------------------------------------------------------------------
+# 7. Temporários e cópias locais
+# --------------------------------------------------------------------------
+*.log
+*.tmp
+*.bak
+~$*
+*.zip

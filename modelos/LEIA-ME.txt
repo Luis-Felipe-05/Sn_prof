@@ -1,0 +1,35 @@
+﻿MODELO DE IMPORTACAO DE ALUNOS
+Sistema de Notas - Google Sheets + Apps Script
+================================================
+
+Arquivos desta pasta:
+
+  modelo-importacao-alunos.xlsx
+      Planilha pronta para preencher no Excel, LibreOffice ou Google Sheets.
+      A aba "Alunos" tem o cabecalho "Nome" e nomes ficticios.
+      A aba "Como usar" repete as instrucoes abaixo.
+
+  modelo-importacao-alunos.csv
+      Mesmo conteudo em CSV (UTF-8), para importar direto no sistema.
+
+Como usar:
+
+  1. Abra o XLSX e substitua os nomes ficticios pelos nomes reais.
+  2. Mantenha o cabecalho "Nome" na primeira linha.
+  3. Um aluno por linha. Linhas vazias e nomes repetidos sao ignorados.
+  4. Salve como CSV (Arquivo > Salvar como > CSV UTF-8) ou mantenha no
+     Google Sheets.
+  5. No sistema: Turmas > abra a turma > aba Alunos > Importar planilha.
+  6. Escolha "Enviar arquivo CSV ou TXT" ou "Link do Google Sheets".
+  7. A importacao vale para uma turma por vez. No link, o sistema le a
+     primeira aba da planilha.
+  8. Limite: 2.000 nomes por importacao.
+
+Observacoes:
+
+  - O sistema procura a coluna "Nome" (ou "Aluno", "Aluna", "Estudante",
+    "Discente", "Name"). Se nao houver cabecalho, usa a coluna com mais texto.
+  - Numeros e linhas sem letras sao ignorados.
+  - O CSV usa ponto e virgula? Nao: como ha uma unica coluna, nao ha
+    separador. Basta um nome por linha.
+  - Nenhum dado de aluno real esta neste modelo.
