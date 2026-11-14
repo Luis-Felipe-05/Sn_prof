@@ -1,5 +1,15 @@
 /** Aba de boletim: visão por matéria e resumo geral da turma. */
 var BoletimTab = (function () {
+  /** Opções da coluna "Situação final" (chave = valor gravado no backend). */
+  var SITUACOES = [
+    { valor: '', rotulo: '—' },
+    { valor: 'aprovado', rotulo: 'Aprovado' },
+    { valor: 'reprovado', rotulo: 'Reprovado' },
+    { valor: 'aprovado_conselho', rotulo: 'Aprovado pelo conselho' },
+    { valor: 'reprovado_conselho', rotulo: 'Reprovado pelo conselho' },
+    { valor: 'reprovado_frequencia', rotulo: 'Reprovado por frequência' },
+    { valor: 'reprovado_nota', rotulo: 'Reprovado por nota' }
+  ];
   function render(container, turma) {
     if (!turma.materias.length) {
       container.innerHTML = Ui.vazio({
@@ -210,6 +220,7 @@ var BoletimTab = (function () {
                   '</th>';
               }).join('') +
               '<th class="center">Média final</th>' +
+              '<th class="center">Situação final</th>' +
             '</tr></thead>' +
             '<tbody>' +
               boletim.alunos.map(function (aluno) {
@@ -256,6 +267,9 @@ var BoletimTab = (function () {
                             ' de 4 bimestres considerados'
                       }) +
                     '</td>' +
+                    '<td class="center">' +
+                      celulaSituacao(aluno) +
+                    '</td>' +
                   '</tr>'
                 );
               }).join('') +
@@ -270,6 +284,7 @@ var BoletimTab = (function () {
               '<td class="center">' +
                 celulaMedia(boletim.mediaFinalTurma, false, '') +
               '</td>' +
+              '<td></td>' +
             '</tr></tfoot>' +
           '</table>' +
         '</div>' +
@@ -376,6 +391,23 @@ var BoletimTab = (function () {
     );
   }
 
+  /** Select com a situação final do aluno na matéria. */
+  function celulaSituacao(aluno) {
+    var atual = aluno.situacao || '';
+    return (
+      '<select class="select situacao-select" ' +
+        'data-situacao data-aluno-id="' + Ui.escaparHtml(aluno.id) + '" ' +
+        'data-valor-anterior="' + Ui.escaparHtml(atual) + '" ' +
+        'title="Situação final de ' + Ui.escaparHtml(aluno.nome) + '">' +
+        SITUACOES.map(function (opcao) {
+          return '<option value="' + Ui.escaparHtml(opcao.valor) + '"' +
+            (opcao.valor === atual ? ' selected' : '') + '>' +
+            Ui.escaparHtml(opcao.rotulo) + '</option>';
+        }).join('') +
+      '</select>'
+    );
+  }
+
   function celulaMedia(valor, parcial, titulo) {
     if (valor === null || valor === undefined || valor === '') {
       return '<span class="media-cell vazia">—</span>';
@@ -470,11 +502,51 @@ var BoletimTab = (function () {
       });
     }
 
+    Ui.qsa('[data-situacao]', container).forEach(function (seletor) {
+      seletor.addEventListener('change', function () {
+        salvarSituacao(seletor);
+      });
+    });
+
     var irAlunos = container.querySelector('[data-ir-alunos-boletim]');
     if (irAlunos) {
       irAlunos.addEventListener('click', function () {
         App.navegarTurma(turma.id, 'alunos');
       });
+    }
+  }
+
+  async function salvarSituacao(seletor) {
+    var alunoId = seletor.getAttribute('data-aluno-id');
+    var materiaId = Estado.materiaBoletimId;
+    var valor = seletor.value;
+    var anterior = seletor.getAttribute('data-valor-anterior') || '';
+
+    seletor.disabled = true;
+    try {
+      var resultado = await Api.salvarSituacao({
+        alunoId: alunoId,
+        materiaId: materiaId,
+        valor: valor
+      });
+      seletor.setAttribute('data-valor-anterior', resultado.situacao || '');
+      if (Estado.boletim) {
+        Estado.boletim.alunos = Estado.boletim.alunos.map(function (aluno) {
+          if (aluno.id !== alunoId) return aluno;
+          var atualizado = {};
+          Object.keys(aluno).forEach(function (chave) {
+            atualizado[chave] = aluno[chave];
+          });
+          atualizado.situacao = resultado.situacao;
+          return atualizado;
+        });
+      }
+      Ui.toast('Situação final registrada.', 'sucesso');
+    } catch (erro) {
+      seletor.value = anterior;
+      Ui.toast(erro.message || 'Não foi possível salvar a situação final.', 'erro');
+    } finally {
+      seletor.disabled = false;
     }
   }
 

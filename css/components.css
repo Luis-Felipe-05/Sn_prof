@@ -35,6 +35,8 @@
 }
 .icon-btn svg { width: 18px; height: 18px; }
 .icon-btn:hover { background: var(--surface-2); color: var(--text); border-color: var(--border); }
+.icon-btn:disabled { opacity: 0.4; cursor: default; }
+.icon-btn:disabled:hover { background: transparent; color: var(--muted); border-color: transparent; }
 .icon-btn.perigo:hover { background: var(--danger-soft); color: var(--danger); border-color: #fecaca; }
 
 /* ---------- Cards ---------- */

@@ -505,6 +505,9 @@ var Api = (function () {
     excluirAluno: function (id) {
       return chamar('apiExcluirAluno', [id]);
     },
+    moverAluno: function (id, direcao) {
+      return chamar('apiMoverAluno', [id, direcao]);
+    },
     importarAlunos: function (turmaId, payload) {
       return chamar('apiImportarAlunos', [turmaId, payload]);
     },
@@ -528,6 +531,9 @@ var Api = (function () {
     },
     salvarMediaManual: function (dados) {
       return chamar('apiSalvarMediaManual', [dados]);
+    },
+    salvarSituacao: function (dados) {
+      return chamar('apiSalvarSituacao', [dados]);
     },
     obterBoletim: function (turmaId, materiaId) {
       return chamar('apiObterBoletim', [turmaId, materiaId]);

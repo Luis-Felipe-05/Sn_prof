@@ -13,6 +13,15 @@ var LocalBackend = (function () {
   var BIMESTRES = [1, 2, 3, 4];
   var MAX_BACKUPS = 16;
   var LIMITE_IMPORTACAO = 2000;
+  /** Situações finais aceitas por (aluno, matéria). */
+  var SITUACOES_VALIDAS = {
+    aprovado: true,
+    reprovado: true,
+    aprovado_conselho: true,
+    reprovado_conselho: true,
+    reprovado_frequencia: true,
+    reprovado_nota: true
+  };
   var memoria = null;
 
   /* ---------------- Persistência ---------------- */
@@ -25,6 +34,7 @@ var LocalBackend = (function () {
       avaliacoes: [],
       notas: [],
       mediasManuais: [],
+      situacoes: [],
       config: [],
       backups: []
     };
@@ -41,6 +51,7 @@ var LocalBackend = (function () {
     base.mediasManuais = Array.isArray(dados.mediasManuais)
       ? dados.mediasManuais
       : [];
+    base.situacoes = Array.isArray(dados.situacoes) ? dados.situacoes : [];
     base.config = Array.isArray(dados.config) ? dados.config : [];
     base.backups = Array.isArray(dados.backups) ? dados.backups : [];
     return base;
@@ -298,16 +309,37 @@ var LocalBackend = (function () {
       });
   }
 
+  /** Posição escolhida pelo professor, ou null quando ainda é a ordem padrão. */
+  function ordemDoAluno(aluno) {
+    var valor = aluno ? aluno.ordem : null;
+    if (valor === null || valor === undefined || valor === '') return null;
+    var numero = Number(valor);
+    return isFinite(numero) ? numero : null;
+  }
+
+  /**
+   * Alunos com posição definida vêm primeiro (na ordem escolhida); os demais
+   * mantêm a ordem alfabética ao final da lista.
+   */
+  function compararAlunos(a, b) {
+    var ordemA = ordemDoAluno(a);
+    var ordemB = ordemDoAluno(b);
+    if (ordemA === null && ordemB !== null) return 1;
+    if (ordemA !== null && ordemB === null) return -1;
+    if (ordemA !== null && ordemB !== null && ordemA !== ordemB) {
+      return ordemA - ordemB;
+    }
+    return String(a.nome).localeCompare(String(b.nome), 'pt-BR', {
+      sensitivity: 'base'
+    });
+  }
+
   function alunosDaTurma(dados, turmaId) {
     return dados.alunos
       .filter(function (aluno) {
         return aluno.turmaId === turmaId;
       })
-      .sort(function (a, b) {
-        return String(a.nome).localeCompare(String(b.nome), 'pt-BR', {
-          sensitivity: 'base'
-        });
-      });
+      .sort(compararAlunos);
   }
 
   function avaliacoesDaTurma(dados, turmaId) {
@@ -427,6 +459,19 @@ var LocalBackend = (function () {
     return (
       mapa[chaveMediaManual(alunoId, materiaId, escopo, bimestre)] || null
     );
+  }
+
+  function chaveSituacao(alunoId, materiaId) {
+    return alunoId + '|' + materiaId;
+  }
+
+  function mapaSituacoes(dados) {
+    var mapa = {};
+    (dados.situacoes || []).forEach(function (registro) {
+      if (!SITUACOES_VALIDAS[registro.valor]) return;
+      mapa[chaveSituacao(registro.alunoId, registro.materiaId)] = registro.valor;
+    });
+    return mapa;
   }
 
   /* ---------------- Importação ---------------- */
@@ -626,6 +671,7 @@ var LocalBackend = (function () {
       avaliacoes: dados.avaliacoes,
       notas: dados.notas,
       mediasManuais: dados.mediasManuais,
+      situacoes: dados.situacoes,
       config: dados.config
     };
   }
@@ -765,6 +811,9 @@ var LocalBackend = (function () {
       dados.mediasManuais = dados.mediasManuais.filter(function (registro) {
         return !alunoIds[registro.alunoId];
       });
+      dados.situacoes = (dados.situacoes || []).filter(function (registro) {
+        return !alunoIds[registro.alunoId];
+      });
       dados.avaliacoes = dados.avaliacoes.filter(function (avaliacao) {
         return avaliacao.turmaId !== turma.id;
       });
@@ -811,6 +860,49 @@ var LocalBackend = (function () {
       return aluno;
     },
 
+    /** Troca a posição do aluno de lugar com o vizinho de cima ou de baixo. */
+    apiMoverAluno: function (id, direcao) {
+      var dados = ler();
+      var aluno = null;
+      for (var i = 0; i < dados.alunos.length; i += 1) {
+        if (dados.alunos[i].id === id) {
+          aluno = dados.alunos[i];
+          break;
+        }
+      }
+      if (!aluno) falha('Aluno não encontrado.');
+
+      var passo;
+      if (direcao === 'cima' || direcao === -1) passo = -1;
+      else if (direcao === 'baixa' || direcao === 1) passo = 1;
+      else falha('Direção inválida.');
+
+      var lista = alunosDaTurma(dados, aluno.turmaId);
+      var indice = -1;
+      for (var j = 0; j < lista.length; j += 1) {
+        if (lista[j].id === id) {
+          indice = j;
+          break;
+        }
+      }
+      if (indice < 0) falha('Aluno não encontrado.');
+
+      var alvo = indice + passo;
+      if (alvo < 0 || alvo >= lista.length) return lista;
+
+      // Grava a ordem atual (a primeira troca fixa a lista inteira) e depois
+      // faz a permuta entre os dois vizinhos.
+      lista.forEach(function (item, k) {
+        item.ordem = k + 1;
+      });
+      var temporaria = lista[indice].ordem;
+      lista[indice].ordem = lista[alvo].ordem;
+      lista[alvo].ordem = temporaria;
+
+      gravar(dados);
+      return alunosDaTurma(dados, aluno.turmaId);
+    },
+
     apiRenomearAluno: function (id, nome) {
       var dados = ler();
       var aluno = null;
@@ -846,6 +938,9 @@ var LocalBackend = (function () {
         return nota.alunoId !== id;
       });
       dados.mediasManuais = dados.mediasManuais.filter(function (registro) {
+        return registro.alunoId !== id;
+      });
+      dados.situacoes = (dados.situacoes || []).filter(function (registro) {
         return registro.alunoId !== id;
       });
       dados.alunos = dados.alunos.filter(function (aluno) {
@@ -1256,6 +1351,52 @@ var LocalBackend = (function () {
       return resultado;
     },
 
+    /** Grava (ou limpa) a situação final do aluno na matéria. */
+    apiSalvarSituacao: function (payload) {
+      var dados = ler();
+      var alunoId = payload && payload.alunoId;
+      var materiaId = payload && payload.materiaId;
+      var valor = payload && payload.valor ? String(payload.valor) : '';
+
+      var aluno = null;
+      for (var i = 0; i < dados.alunos.length; i += 1) {
+        if (dados.alunos[i].id === alunoId) {
+          aluno = dados.alunos[i];
+          break;
+        }
+      }
+      if (!aluno) falha('Aluno não encontrado.');
+
+      var materia = null;
+      for (var j = 0; j < dados.materias.length; j += 1) {
+        if (dados.materias[j].id === materiaId) {
+          materia = dados.materias[j];
+          break;
+        }
+      }
+      if (!materia || materia.turmaId !== aluno.turmaId) {
+        falha('Matéria não encontrada nesta turma.');
+      }
+
+      if (valor && !SITUACOES_VALIDAS[valor]) falha('Situação final inválida.');
+
+      dados.situacoes = (dados.situacoes || []).filter(function (registro) {
+        return !(registro.alunoId === alunoId && registro.materiaId === materiaId);
+      });
+      if (valor) {
+        dados.situacoes.push({
+          id: uid(),
+          alunoId: alunoId,
+          materiaId: materiaId,
+          valor: valor,
+          atualizadoEm: agora()
+        });
+      }
+      gravar(dados);
+
+      return { alunoId: alunoId, materiaId: materiaId, situacao: valor || null };
+    },
+
     apiObterBoletim: function (turmaId, materiaId) {
       var dados = ler();
       var contexto = contextoAvaliacao(dados, turmaId, materiaId, 1);
@@ -1294,6 +1435,7 @@ var LocalBackend = (function () {
       });
 
       var mediasManuais = mapaMediasManuais(dados);
+      var situacoes = mapaSituacoes(dados);
       var alunosBoletim = alunos.map(function (aluno) {
         var bimestres = {};
         var mediasExatas = [];
@@ -1337,7 +1479,8 @@ var LocalBackend = (function () {
           mediaFinalAutomatica: final.mediaAutomatica,
           mediaFinalManual: final.manual,
           finalCompleto: final.manual ? true : final.completo && todosCompletos,
-          bimestresConsiderados: final.bimestresConsiderados
+          bimestresConsiderados: final.bimestresConsiderados,
+          situacao: situacoes[chaveSituacao(aluno.id, contexto.materia.id)] || null
         };
       });
 
@@ -1536,7 +1679,8 @@ var LocalBackend = (function () {
         notas: conteudo.notas.length,
         mediasManuais: Array.isArray(conteudo.mediasManuais)
           ? conteudo.mediasManuais.length
-          : 0
+          : 0,
+        situacoes: Array.isArray(conteudo.situacoes) ? conteudo.situacoes.length : 0
       };
 
       dados.turmas = conteudo.turmas.slice();
@@ -1546,6 +1690,9 @@ var LocalBackend = (function () {
       dados.notas = conteudo.notas.slice();
       dados.mediasManuais = Array.isArray(conteudo.mediasManuais)
         ? conteudo.mediasManuais.slice()
+        : [];
+      dados.situacoes = Array.isArray(conteudo.situacoes)
+        ? conteudo.situacoes.slice()
         : [];
       if (Array.isArray(conteudo.config)) dados.config = conteudo.config.slice();
 
@@ -1625,6 +1772,9 @@ var LocalBackend = (function () {
         return avaliacao.materiaId !== materia.id;
       });
       dados.mediasManuais = dados.mediasManuais.filter(function (registro) {
+        return registro.materiaId !== materia.id;
+      });
+      dados.situacoes = (dados.situacoes || []).filter(function (registro) {
         return registro.materiaId !== materia.id;
       });
       dados.materias = dados.materias.filter(function (outra) {

@@ -124,6 +124,8 @@ var AlunosTab = (function () {
         salvarNome(painel, turma, id, container);
       } else if (acao === 'excluir') {
         excluirAluno(painel, turma, id, container);
+      } else if (acao === 'mover-cima' || acao === 'mover-baixo') {
+        moverAluno(painel, turma, id, acao === 'mover-cima' ? 'cima' : 'baixo', container);
       }
     });
 
@@ -144,6 +146,7 @@ var AlunosTab = (function () {
     var externo = raizExterna || container;
 
     var filtro = Estado.filtroAluno.trim().toLowerCase();
+    var filtrando = !!filtro;
     var alunos = Estado.alunos.filter(function (aluno) {
       return !filtro || aluno.nome.toLowerCase().indexOf(filtro) !== -1;
     });
@@ -182,11 +185,14 @@ var AlunosTab = (function () {
           '<thead><tr>' +
             '<th style="width:52px">#</th>' +
             '<th>Nome do aluno</th>' +
-            '<th style="width:120px; text-align:right">Ações</th>' +
+            '<th style="width:190px; text-align:right">Ações</th>' +
           '</tr></thead>' +
           '<tbody>' +
             alunos.map(function (aluno, indice) {
               var editando = Estado.alunoEditandoId === aluno.id;
+              var podeMover = !editando && !filtrando;
+              var primeiro = indice === 0;
+              var ultimo = indice === alunos.length - 1;
               return (
                 '<tr>' +
                   '<td class="student-index">' + (indice + 1) + '</td>' +
@@ -207,6 +213,16 @@ var AlunosTab = (function () {
                   '</td>' +
                   '<td>' +
                     '<div class="row-actions">' +
+                      (podeMover
+                        ? '<button type="button" class="icon-btn" title="Mover para cima" ' +
+                            (primeiro ? 'disabled ' : '') +
+                            'data-acao-aluno="mover-cima" data-aluno-id="' +
+                            Ui.escaparHtml(aluno.id) + '">' + Ui.icone('arrowUp') + '</button>' +
+                          '<button type="button" class="icon-btn" title="Mover para baixo" ' +
+                            (ultimo ? 'disabled ' : '') +
+                            'data-acao-aluno="mover-baixo" data-aluno-id="' +
+                            Ui.escaparHtml(aluno.id) + '">' + Ui.icone('arrowDown') + '</button>'
+                        : '') +
                       (!editando
                         ? '<button type="button" class="icon-btn" title="Editar nome" ' +
                             'data-acao-aluno="editar" data-aluno-id="' +
@@ -253,6 +269,17 @@ var AlunosTab = (function () {
       Ui.toast('Nome atualizado.', 'sucesso');
     } catch (erro) {
       Ui.toast(erro.message || 'Não foi possível renomear o aluno.', 'erro');
+    }
+  }
+
+  /** Move o aluno uma posição para cima ou para baixo e re-renderiza a lista. */
+  async function moverAluno(container, turma, id, direcao, raizExterna) {
+    try {
+      var alunos = await Api.moverAluno(id, direcao);
+      if (Array.isArray(alunos)) Estado.alunos = alunos;
+      atualizarTabela(container, turma, raizExterna);
+    } catch (erro) {
+      Ui.toast(erro.message || 'Não foi possível alterar a posição do aluno.', 'erro');
     }
   }
 
@@ -478,7 +505,18 @@ var AlunosTab = (function () {
     });
   }
 
+  /**
+   * Mesma regra do backend: quem tem posição escolhida vem primeiro, na ordem
+   * escolhida; os demais ficam em ordem alfabética no final.
+   */
   function ordenarAlunos(a, b) {
+    var ordemA = Number(a.ordem);
+    var ordemB = Number(b.ordem);
+    var temA = a.ordem !== null && a.ordem !== undefined && a.ordem !== '' && isFinite(ordemA);
+    var temB = b.ordem !== null && b.ordem !== undefined && b.ordem !== '' && isFinite(ordemB);
+    if (!temA && temB) return 1;
+    if (temA && !temB) return -1;
+    if (temA && temB && ordemA !== ordemB) return ordemA - ordemB;
     return a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' });
   }
 
