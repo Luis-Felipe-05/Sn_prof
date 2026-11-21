@@ -424,6 +424,10 @@ var RecuperacaoView = (function () {
           '<button type="button" class="btn btn-primary" data-gerar-pdf>' +
             Ui.icone('download') + 'Gerar PDF' +
           '</button>' +
+          '<button type="button" class="btn btn-secondary" data-gerar-pdf-simples ' +
+            'title="PDF simplificado: uma tabela por turma e disciplina">' +
+            Ui.icone('download') + 'Exportar PDF' +
+          '</button>' +
         '</div>' +
       '</div>'
     );
@@ -441,6 +445,13 @@ var RecuperacaoView = (function () {
     if (botaoPdf) {
       botaoPdf.addEventListener('click', function () {
         gerarPdf(itens);
+      });
+    }
+
+    var botaoPdfSimples = container.querySelector('[data-gerar-pdf-simples]');
+    if (botaoPdfSimples) {
+      botaoPdfSimples.addEventListener('click', function () {
+        gerarPdfSimplificado(itens);
       });
     }
 
@@ -1162,6 +1173,212 @@ var RecuperacaoView = (function () {
     return nota(calc.valor) + (calc.parcial ? '*' : '');
   }
 
+  /* ------------------------------------------------------------------ */
+  /* PDF simplificado — uma tabela por turma e disciplina                */
+  /* ------------------------------------------------------------------ */
+
+  var COLUNAS_SIMPLES = [
+    { titulo: 'Aluno', largura: 480, alinhamento: 'esquerda' },
+    { titulo: 'Situação', largura: 282, alinhamento: 'esquerda' }
+  ];
+
+  function colunaXSimples(indice) {
+    var x = 40;
+    for (var i = 0; i < indice; i += 1) x += COLUNAS_SIMPLES[i].largura;
+    return x;
+  }
+
+  /** Só as turmas/disciplinas que têm alguém de recuperação. */
+  function tabelasSimples(itens) {
+    var tabelas = [];
+
+    (itens || []).forEach(function (item) {
+      if (item.erro || !item.turma || !item.materias) return;
+
+      (item.materias || []).forEach(function (bloco) {
+        var alunos = (bloco.calculo && bloco.calculo.alunos) || [];
+        if (!alunos.length) return;
+        tabelas.push({
+          turma: item.turma,
+          disciplina: (bloco.materia && bloco.materia.nome) || 'Disciplina',
+          alunos: alunos
+        });
+      });
+    });
+
+    return tabelas;
+  }
+
+  function situacaoSimples(aluno) {
+    if (aluno.situacao === '12') return 'Nos dois semestres';
+    if (aluno.situacao === '1') return '1º semestre';
+    return '2º semestre';
+  }
+
+  /**
+   * Versão enxuta do PDF: para cada turma e disciplina, uma tabela com o nome
+   * do aluno e em qual semestre ele ficou de recuperação. Sem médias, sem
+   * legendas longas e sem alterar os cálculos da tela.
+   */
+  function gerarPdfSimplificado(itens) {
+    var tabelas = tabelasSimples(itens);
+
+    if (!tabelas.length) {
+      Ui.toast(
+        'Não há alunos de recuperação para exportar no PDF simplificado.',
+        'aviso'
+      );
+      return;
+    }
+
+    var doc = Pdf.criar({ largura: 842, altura: 595, margem: 40 });
+    var alturaLinha = 16;
+    var turmaAtual = null;
+
+    cabecalhoSimplesPdf(doc, tabelas);
+
+    tabelas.forEach(function (tabela) {
+      var chaveTurma = tabela.turma.id || tabela.turma.nome;
+      var novaTurma = chaveTurma !== turmaAtual;
+
+      // Cabeça da turma + título da disciplina + colunas + três linhas.
+      doc.espaco((novaTurma ? 22 : 0) + 20 + 18 + alturaLinha * 3);
+      if (novaTurma) {
+        tituloTurmaSimplesPdf(doc, tabela.turma);
+        turmaAtual = chaveTurma;
+      }
+      tituloTabelaSimplesPdf(doc, tabela, false);
+
+      tabela.alunos.forEach(function (aluno) {
+        if (doc.y + alturaLinha > doc.altura - doc.margem) {
+          doc.novaPagina();
+          tituloTabelaSimplesPdf(doc, tabela, true);
+        }
+        linhaSimplesPdf(doc, aluno, alturaLinha);
+      });
+      doc.y += 10;
+    });
+
+    var agora = new Date();
+    doc.rodapes = function (pagina, total) {
+      doc.texto(40, 564, 'Gerado em ' + agora.toLocaleDateString('pt-BR') +
+        ' às ' + agora.toLocaleTimeString('pt-BR'),
+        { tamanho: 7.5, cor: '#64748b' });
+      doc.texto(802, 564, 'Página ' + pagina + ' de ' + total,
+        { tamanho: 7.5, cor: '#64748b', alinhamento: 'direita' });
+      doc.regua(40, 802, 561, { cor: '#e2e8f0', largura: 0.7 });
+    };
+
+    Pdf.baixar(doc, 'recuperacao-por-turma-e-disciplina.pdf');
+    Ui.toast(
+      'PDF simplificado gerado: ' + tabelas.length + ' ' +
+        Ui.plural(tabelas.length, 'tabela', 'tabelas') + '.',
+      'sucesso'
+    );
+  }
+
+  function cabecalhoSimplesPdf(doc, tabelas) {
+    var topo = doc.bloco(24);
+    doc.texto(40, topo, 'Recuperação por turma e disciplina', {
+      tamanho: 16,
+      negrito: true,
+      cor: '#0f172a'
+    });
+    doc.texto(802, topo + 6, 'Sistema de Notas', {
+      tamanho: 9,
+      cor: '#64748b',
+      alinhamento: 'direita'
+    });
+
+    var ocorrencias = 0;
+    var turmas = {};
+    tabelas.forEach(function (tabela) {
+      ocorrencias += tabela.alunos.length;
+      turmas[tabela.turma.id || tabela.turma.nome] = true;
+    });
+
+    doc.bloco(14);
+    doc.texto(40, topo + 27,
+      ocorrencias + ' ' + Ui.plural(ocorrencias, 'ocorrência', 'ocorrências') +
+      ' de recuperação · ' + Object.keys(turmas).length + ' ' +
+      Ui.plural(Object.keys(turmas).length, 'turma', 'turmas') +
+      ' · ' + tabelas.length + ' ' +
+      Ui.plural(tabelas.length, 'disciplina', 'disciplinas'),
+      { tamanho: 9, negrito: true, cor: '#4f46e5' });
+
+    doc.bloco(16);
+    doc.texto(40, topo + 41,
+      'Semestre abaixo de 5,0: 1º = (1º + 2º bim.) ÷ 2 · ' +
+      '2º = (3º + 4º bim.) ÷ 2',
+      { tamanho: 8.5, cor: '#475569' });
+
+    doc.regua(40, 802, doc.y + 4, { cor: '#cbd5e1', largura: 0.8 });
+    doc.y += 10;
+  }
+
+  function tituloTurmaSimplesPdf(doc, turma) {
+    var topo = doc.bloco(22);
+    doc.texto(40, topo + 3, String(turma.nome || ''), {
+      tamanho: 11,
+      negrito: true,
+      cor: '#0f172a',
+      largura: 500
+    });
+    doc.texto(802, topo + 4, 'Ano ' + (turma.ano || ''), {
+      tamanho: 9,
+      cor: '#64748b',
+      alinhamento: 'direita'
+    });
+  }
+
+  function tituloTabelaSimplesPdf(doc, tabela, continuacao) {
+    var topo = doc.bloco(20);
+    doc.retangulo(40, topo, 762, 18, '#e0e7ff');
+    doc.texto(47, topo + 4,
+      tabela.disciplina + (continuacao ? ' — continuação' : ''), {
+        tamanho: 10,
+        negrito: true,
+        cor: '#1e3a8a',
+        largura: 500
+      });
+    doc.texto(795, topo + 5,
+      tabela.alunos.length + ' ' +
+        Ui.plural(tabela.alunos.length, 'aluno', 'alunos'), {
+        tamanho: 8.5,
+        cor: '#b91c1c',
+        alinhamento: 'direita'
+      });
+
+    var topoColunas = doc.bloco(18);
+    doc.retangulo(40, topoColunas, 762, 16, '#f1f5f9');
+    COLUNAS_SIMPLES.forEach(function (coluna, indice) {
+      doc.texto(colunaXSimples(indice) + 5, topoColunas + 3, coluna.titulo, {
+        tamanho: 8,
+        negrito: true,
+        cor: '#475569',
+        largura: coluna.largura - 8
+      });
+    });
+    doc.regua(40, 802, doc.y, { cor: '#94a3b8', largura: 0.8 });
+  }
+
+  function linhaSimplesPdf(doc, aluno, alturaLinha) {
+    var topo = doc.bloco(alturaLinha);
+    var base = topo + 3.5;
+
+    doc.texto(colunaXSimples(0) + 5, base, aluno.nome, {
+      tamanho: 9,
+      largura: COLUNAS_SIMPLES[0].largura - 10
+    });
+    doc.texto(colunaXSimples(1) + 5, base, situacaoSimples(aluno), {
+      tamanho: 9,
+      negrito: true,
+      cor: aluno.situacao === '12' ? '#b91c1c' : '#b45309',
+      largura: COLUNAS_SIMPLES[1].largura - 10
+    });
+    doc.regua(40, 802, topo + alturaLinha, { cor: '#e2e8f0', largura: 0.6 });
+  }
+
   function render(container) {
     carregar(container, false);
   }
@@ -1171,6 +1388,7 @@ var RecuperacaoView = (function () {
     calcularTurma: calcularTurma,
     calcularMateria: calcularMateria,
     calcularMaterias: calcularMaterias,
-    gerarPdf: gerarPdf
+    gerarPdf: gerarPdf,
+    gerarPdfSimplificado: gerarPdfSimplificado
   };
 })();

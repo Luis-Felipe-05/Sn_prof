@@ -74,6 +74,8 @@ var App = (function () {
           navegarBackup();
         } else if (destino === 'recuperacao') {
           navegarRecuperacao();
+        } else if (destino === 'estatisticas') {
+          navegarEstatisticas();
         } else {
           navegarTurmas();
         }
@@ -263,6 +265,10 @@ var App = (function () {
       return { view: 'recuperacao', turmaId: null, aba: 'recuperacao' };
     }
 
+    if (partes[0] === 'estatisticas') {
+      return { view: 'estatisticas', turmaId: null, aba: 'estatisticas' };
+    }
+
     return { view: 'turmas', turmaId: null, aba: 'alunos' };
   }
 
@@ -301,6 +307,8 @@ var App = (function () {
         BackupView.render(alvo);
       } else if (Estado.rota.view === 'recuperacao') {
         RecuperacaoView.render(alvo);
+      } else if (Estado.rota.view === 'estatisticas') {
+        EstatisticasView.render(alvo);
       } else {
         TurmasView.render(alvo);
       }
@@ -319,7 +327,8 @@ var App = (function () {
         (destino === 'turmas' &&
           (Estado.rota.view === 'turmas' || Estado.rota.view === 'turma')) ||
         (destino === 'backup' && Estado.rota.view === 'backup') ||
-        (destino === 'recuperacao' && Estado.rota.view === 'recuperacao');
+        (destino === 'recuperacao' && Estado.rota.view === 'recuperacao') ||
+        (destino === 'estatisticas' && Estado.rota.view === 'estatisticas');
       botao.classList.toggle('ativo', ativo);
     });
   }
@@ -330,6 +339,8 @@ var App = (function () {
       titulo = 'Backup · ' + titulo;
     } else if (Estado.rota.view === 'recuperacao') {
       titulo = 'Alunos de recuperação · ' + titulo;
+    } else if (Estado.rota.view === 'estatisticas') {
+      titulo = 'Estatísticas · ' + titulo;
     } else if (Estado.rota.view === 'turma') {
       var turma = Estado.turmaPorId(Estado.rota.turmaId) || Estado.turma;
       if (turma) titulo = turma.nome + ' · ' + titulo;
@@ -357,6 +368,11 @@ var App = (function () {
   function navegarRecuperacao() {
     if (location.hash === '#/recuperacao') return;
     location.hash = '#/recuperacao';
+  }
+
+  function navegarEstatisticas() {
+    if (location.hash === '#/estatisticas') return;
+    location.hash = '#/estatisticas';
   }
 
   function recarregarRota() {
@@ -504,6 +520,7 @@ var App = (function () {
     navegarTurma: navegarTurma,
     navegarBackup: navegarBackup,
     navegarRecuperacao: navegarRecuperacao,
+    navegarEstatisticas: navegarEstatisticas,
     recarregarRota: recarregarRota,
     atualizarTurmas: atualizarTurmas,
     atualizarContagens: atualizarContagens,

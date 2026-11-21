@@ -271,3 +271,166 @@ td.semestre-recup.sim { background: rgba(225, 29, 72, 0.07); }
   display: flex; flex-direction: column; gap: 8px;
   max-height: 300px; overflow: auto;
 }
+
+/* ==========================================================================
+   Estatísticas — painel analítico
+   ========================================================================== */
+
+.est-page { display: flex; flex-direction: column; gap: 4px; }
+
+/* ---------- KPIs ---------- */
+.kpi-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(185px, 1fr));
+  gap: 13px; margin: 4px 0 22px;
+}
+.kpi-card {
+  position: relative; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 13px; padding: 15px 17px; box-shadow: var(--shadow);
+  display: flex; flex-direction: column; gap: 3px; overflow: hidden;
+}
+.kpi-card::before {
+  content: ''; position: absolute; inset: 0 auto 0 0; width: 3px;
+  background: var(--primary); opacity: 0.9;
+}
+.kpi-card.kpi-success::before { background: #10b981; }
+.kpi-card.kpi-warning::before { background: #f59e0b; }
+.kpi-card.kpi-danger::before { background: #ef4444; }
+.kpi-card.kpi-info::before { background: #3b82f6; }
+.kpi-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.kpi-label {
+  font-size: 11px; color: var(--muted); font-weight: 750;
+  text-transform: uppercase; letter-spacing: 0.055em;
+}
+.kpi-icon {
+  width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center;
+  background: var(--primary-soft); color: var(--primary); flex: 0 0 26px;
+}
+.kpi-icon svg { width: 15px; height: 15px; }
+.kpi-success .kpi-icon { background: var(--success-soft); color: #059669; }
+.kpi-warning .kpi-icon { background: var(--warning-soft); color: #d97706; }
+.kpi-danger .kpi-icon { background: var(--danger-soft); color: #dc2626; }
+.kpi-info .kpi-icon { background: var(--info-soft); color: #0284c7; }
+.kpi-value {
+  font-size: 27px; font-weight: 800; color: var(--text); line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+}
+.kpi-value small { font-size: 13px; font-weight: 650; color: var(--muted); }
+.kpi-sub { font-size: 11.5px; color: var(--muted); font-weight: 550; }
+
+/* ---------- Seções ---------- */
+.est-section { margin-top: 26px; }
+.est-section-head {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: 14px; flex-wrap: wrap; margin-bottom: 12px;
+}
+.est-section-title { font-size: 17px; font-weight: 750; color: var(--text); }
+.est-section-desc { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+
+/* ---------- Gráficos ---------- */
+.chart-grid { display: grid; gap: 14px; }
+.chart-grid--2 { grid-template-columns: repeat(auto-fit, minmax(345px, 1fr)); }
+.chart-grid--3 { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+.chart-card { background: var(--surface); border: 1px solid var(--border); border-radius: 13px; box-shadow: var(--shadow); overflow: hidden; }
+.chart-card-head { padding: 14px 17px 10px; }
+.chart-card-title { font-size: 13.5px; font-weight: 750; color: var(--text); }
+.chart-card-sub { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+.chart-card-body { padding: 4px 12px 14px; }
+.chart-wrap { position: relative; width: 100%; height: 215px; }
+.chart-wrap svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.chart-legend {
+  display: flex; flex-wrap: wrap; gap: 5px 14px; padding: 0 17px 13px;
+  font-size: 11.5px; color: var(--muted);
+}
+.legend-item { display: inline-flex; align-items: center; gap: 6px; }
+.legend-swatch { width: 9px; height: 9px; border-radius: 3px; flex: 0 0 9px; }
+.legend-value { color: var(--text-soft); font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* ---------- Faixas / taxas ---------- */
+.rate-bar {
+  display: flex; width: 100%; height: 9px; border-radius: 999px;
+  overflow: hidden; background: var(--surface-2); gap: 2px;
+}
+.rate-bar > span { display: block; height: 100%; }
+.dist-row { display: flex; align-items: center; gap: 9px; margin-top: 8px; font-size: 11.5px; }
+.dist-label { width: 62px; flex: 0 0 62px; color: var(--muted); font-weight: 650; }
+.dist-track { flex: 1; height: 9px; background: var(--surface-2); border-radius: 999px; overflow: hidden; }
+.dist-track > span { display: block; height: 100%; border-radius: 999px; }
+.dist-count { width: 34px; flex: 0 0 34px; text-align: right; color: var(--text-soft); font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* ---------- Tabelas analíticas ---------- */
+.est-table-wrap { overflow: auto; border-radius: 0 0 13px 13px; }
+.est-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 12.5px; }
+.est-table th {
+  text-align: left; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--muted); font-weight: 750; background: var(--surface-2);
+  padding: 10px 13px; border-bottom: 1px solid var(--border); white-space: nowrap;
+}
+.est-table td { padding: 10px 13px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+.est-table tbody tr:last-child td { border-bottom: 0; }
+.est-table tbody tr:hover td { background: #fbfcff; }
+.est-table tfoot td { background: var(--surface-2); font-weight: 750; border-top: 1px solid var(--border); }
+.est-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.est-table .center { text-align: center; }
+.est-table .name { font-weight: 650; color: var(--text); }
+.est-table .sub { font-size: 11px; color: var(--muted); font-weight: 500; }
+.est-table .mini-bar {
+  display: inline-block; vertical-align: middle; width: 62px; height: 6px;
+  border-radius: 999px; background: var(--surface-2); overflow: hidden; margin-right: 7px;
+}
+.est-table .mini-bar > span { display: block; height: 100%; border-radius: 999px; }
+.est-table .numero-destaque { font-weight: 800; font-size: 13px; }
+.est-table .accent-success { color: #047857; }
+.est-table .accent-warning { color: #b45309; }
+.est-table .accent-danger { color: #b91c1c; }
+.est-table th.ordenavel { cursor: pointer; user-select: none; }
+.est-table th.ordenavel:hover { color: var(--primary); }
+.est-table th.ordenavel::after { content: ' ↕'; font-size: 9px; opacity: 0.5; }
+.est-table th.ordenavel.asc::after { content: ' ↑'; opacity: 1; }
+.est-table th.ordenavel.desc::after { content: ' ↓'; opacity: 1; }
+
+/* ---------- Ranking ---------- */
+.rank-list { display: flex; flex-direction: column; gap: 5px; }
+.rank-item {
+  display: flex; align-items: center; gap: 9px; padding: 7px 10px;
+  border-radius: 9px; background: var(--surface-2); font-size: 12.5px;
+}
+.rank-pos {
+  width: 21px; height: 21px; flex: 0 0 21px; border-radius: 7px; display: grid; place-items: center;
+  font-size: 10.5px; font-weight: 800; background: #e2e8f0; color: #475569;
+}
+.rank-item:nth-child(1) .rank-pos { background: #fef3c7; color: #92400e; }
+.rank-item:nth-child(2) .rank-pos { background: #e2e8f0; color: #334155; }
+.rank-item:nth-child(3) .rank-pos { background: #fed7aa; color: #9a3412; }
+.rank-nome { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-soft); }
+.rank-valor { font-weight: 800; font-variant-numeric: tabular-nums; }
+
+/* ---------- Nota metodológica ---------- */
+.metodo-nota {
+  display: flex; gap: 11px; align-items: flex-start; margin-top: 26px;
+  background: var(--info-soft); border: 1px solid #bae6fd; border-radius: 12px;
+  padding: 13px 16px; color: #0c4a6e; font-size: 12px; line-height: 1.6;
+}
+.metodo-nota svg { width: 17px; height: 17px; flex: 0 0 17px; margin-top: 1px; }
+.metodo-nota strong { display: block; font-size: 12.5px; margin-bottom: 2px; }
+.metodo-nota ul { margin: 5px 0 0; padding-left: 18px; }
+.metodo-nota li { margin: 2px 0; }
+
+/* ---------- Turma ---------- */
+.turma-estatistica-card { margin-bottom: 18px; }
+.turma-estatistica-card .card-header { align-items: flex-start; }
+.turma-kpis {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 9px; margin-bottom: 16px;
+}
+.turma-kpi {
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 10px 12px;
+}
+.turma-kpi-label { font-size: 10.5px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+.turma-kpi-value { font-size: 19px; font-weight: 800; margin-top: 2px; font-variant-numeric: tabular-nums; }
+
+@media (max-width: 700px) {
+  .kpi-grid { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+  .chart-grid--2, .chart-grid--3 { grid-template-columns: 1fr; }
+  .chart-wrap { height: 200px; }
+}
