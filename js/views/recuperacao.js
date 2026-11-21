@@ -71,6 +71,14 @@ var RecuperacaoView = (function () {
         return;
       }
 
+      // Backend atual já devolve a média com a nota em falta valendo 0.
+      // Com backend antigo (sem o campo), a conta abaixo faz o mesmo aqui.
+      var pronta = calculo.mediaComZeroExata;
+      if (pronta !== null && pronta !== undefined && isFinite(Number(pronta))) {
+        valores.push(Number(pronta));
+        return;
+      }
+
       var exata = Number(calculo.mediaExata);
       if (!isFinite(exata)) exata = 0; // nenhuma nota lançada: tudo zero.
       if (pesoTotal > 0) {

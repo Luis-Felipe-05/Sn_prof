@@ -238,13 +238,11 @@ var BoletimTab = (function () {
                           materiaNome: boletim.materia.nome,
                           escopo: 'bimestre',
                           bimestre: bimestre,
-                          valor: calculo.media,
-                          automatica: calculo.mediaAutomatica,
+                          valor: mediaExibidaBimestre(calculo),
+                          automatica: automaticaComZero(calculo),
                           manual: calculo.manual,
                           completo: calculo.completo,
-                          titulo: 'Peso lançado: ' +
-                            formatarPercentual(calculo.pesoConsiderado) +
-                            ' de ' + formatarPercentual(calculo.pesoTotal)
+                          titulo: tituloBimestre(calculo)
                         }) +
                       '</td>';
                     }).join('') +
@@ -255,16 +253,18 @@ var BoletimTab = (function () {
                         materiaId: boletim.materia.id,
                         materiaNome: boletim.materia.nome,
                         escopo: 'final',
-                        valor: aluno.mediaFinal,
-                        automatica: aluno.mediaFinalAutomatica,
+                        valor: mediaFinalExibida(aluno),
+                        automatica: aluno.mediaFinalManual
+                          ? aluno.mediaFinalAutomatica
+                          : mediaFinalExibida(aluno),
                         manual: aluno.mediaFinalManual,
                         completo: aluno.finalCompleto,
                         subParcial:
-                          (aluno.bimestresConsiderados || 0) + '/4 bim.',
+                          bimestresCompletos(aluno.bimestres) + '/4 bim.',
                         titulo: aluno.finalCompleto
                           ? ''
-                          : (aluno.bimestresConsiderados || 0) +
-                            ' de 4 bimestres considerados'
+                          : bimestresCompletos(aluno.bimestres) +
+                            ' de 4 bimestres completos'
                       }) +
                     '</td>' +
                     '<td class="center">' +
@@ -290,11 +290,13 @@ var BoletimTab = (function () {
         '</div>' +
         '<div class="card-footer legend">' +
           '<strong>Como calculamos:</strong> a média do bimestre é a soma de ' +
-          '(nota × peso) dividida pela soma dos pesos já lançados. A média final ' +
-          'é a média aritmética dos bimestres com notas. Células marcadas como ' +
-          '<strong>parcial</strong> usam apenas as avaliações já lançadas. ' +
-          'Clique em qualquer média para digitar um valor manual. A média marcada ' +
-          'como <strong>manual</strong> substitui o cálculo até você apagá-la.' +
+          '(nota × peso) dividida pela soma de <strong>todos</strong> os pesos ' +
+          'cadastrados: nota em falta vale <strong>0</strong> e a conta segue. ' +
+          'A média final é a média aritmética dos bimestres com avaliação. ' +
+          'Células marcadas como <strong>parcial</strong> ainda têm nota em ' +
+          'falta — lançá-la pode subir o número. Clique em qualquer média para ' +
+          'digitar um valor manual; a média <strong>manual</strong> substitui o ' +
+          'cálculo até você apagá-la.' +
         '</div>' +
       '</div>'
     );
@@ -340,12 +342,14 @@ var BoletimTab = (function () {
                           materiaId: materia.id,
                           materiaNome: materia.nome,
                           escopo: 'final',
-                          valor: item ? item.mediaFinal : null,
-                          automatica: item ? item.mediaFinalAutomatica : null,
+                          valor: mediaFinalExibida(item),
+                          automatica: item && item.mediaFinalManual
+                            ? item.mediaFinalAutomatica
+                            : mediaFinalExibida(item),
                           manual: item ? item.mediaFinalManual : false,
                           completo: item ? item.completo : false,
                           subParcial: item
-                            ? (item.bimestresConsiderados || 0) + '/4 bim.'
+                            ? bimestresCompletos(item.bimestres) + '/4 bim.'
                             : '',
                           titulo: item && item.completo
                             ? ''
@@ -355,7 +359,7 @@ var BoletimTab = (function () {
                     }).join('') +
                     '<td class="center">' +
                       celulaMedia(
-                        aluno.mediaGeral,
+                        mediaGeralExibida(aluno),
                         !aluno.completo,
                         aluno.completo
                           ? ''
@@ -381,11 +385,12 @@ var BoletimTab = (function () {
         '</div>' +
         '<div class="card-footer legend">' +
           '<strong>Como calculamos:</strong> cada matéria tem sua média final ' +
-          '(média aritmética dos bimestres com notas). A média geral do aluno é ' +
-          'a média aritmética das médias finais das matérias. Células marcadas ' +
-          'como <strong>parcial</strong> ainda têm bimestres sem notas. Clique em ' +
-          'uma média final de matéria para digitá-la manualmente; a média geral ' +
-          'continua sendo calculada a partir desses valores.' +
+          '(média aritmética dos bimestres com avaliação, com nota em falta ' +
+          'valendo <strong>0</strong>). A média geral do aluno é a média ' +
+          'aritmética das médias finais das matérias. Células marcadas como ' +
+          '<strong>parcial</strong> ainda têm nota em falta. Clique em uma média ' +
+          'final de matéria para digitá-la manualmente; a média geral continua ' +
+          'sendo calculada a partir desses valores.' +
         '</div>' +
       '</div>'
     );
@@ -563,6 +568,129 @@ var BoletimTab = (function () {
       total += (porBimestre[bimestre] || []).length;
     });
     return total;
+  }
+
+  /**
+   * Média automática do bimestre já com a nota em falta valendo 0.
+   * Usa o campo do backend; com backend antigo, refaz a conta no navegador.
+   * `mediaAutomaticaExata` (e não `mediaComZeroExata`) é a origem aqui: em
+   * caso de média manual, o valor automático precisa continuar disponível.
+   */
+  function automaticaComZero(calculo) {
+    if (!calculo) return null;
+    var bruto =
+      calculo.mediaAutomaticaExata !== null &&
+      calculo.mediaAutomaticaExata !== undefined
+        ? calculo.mediaAutomaticaExata
+        : calculo.mediaAutomatica;
+    var pesoTotal = Number(calculo.pesoTotal) || 0;
+    var pesoCoberto = Number(calculo.pesoConsiderado) || 0;
+
+    // Campo novo do backend: já vem com o zero aplicado quando não é manual.
+    if (!calculo.manual &&
+      calculo.mediaComZeroExata !== null &&
+      calculo.mediaComZeroExata !== undefined &&
+      isFinite(Number(calculo.mediaComZeroExata))) {
+      return Number(calculo.mediaComZeroExata);
+    }
+    if (!(pesoTotal > 0)) {
+      return bruto === null || bruto === undefined
+        ? null
+        : Number(bruto);
+    }
+    if (bruto === null || bruto === undefined || bruto === '') return 0;
+    var numero = Number(bruto);
+    if (!isFinite(numero)) numero = 0;
+    return numero * Math.min(pesoCoberto, pesoTotal) / pesoTotal;
+  }
+
+  /** Valor mostrado na célula do bimestre (manual vale como foi digitado). */
+  function mediaExibidaBimestre(calculo) {
+    if (!calculo) return null;
+    if (calculo.manual) return calculo.media;
+    return automaticaComZero(calculo);
+  }
+
+  /**
+   * Média final mostrada no boletim (por matéria e resumo geral).
+   * O backend atual já publica 0 quando todos os bimestres com avaliação estão
+   * em zero. Este fallback cobre o caso de ele ainda estar desatualizado ou em
+   * cache: com todos os bimestres zerados, a célula também mostra 0.
+   */
+  function mediaFinalExibida(aluno) {
+    if (!aluno) return null;
+    if (aluno.mediaFinalManual) return aluno.mediaFinal;
+    if (
+      aluno.mediaFinal !== null &&
+      aluno.mediaFinal !== undefined &&
+      aluno.mediaFinal !== ''
+    ) {
+      return aluno.mediaFinal;
+    }
+    var valores = Object.keys(aluno.bimestres || {})
+      .map(function (chave) {
+        return mediaExibidaBimestre(aluno.bimestres[chave]);
+      })
+      .filter(function (valor) {
+        return (
+          valor !== null && valor !== undefined && isFinite(Number(valor))
+        );
+      });
+    return valores.length &&
+      valores.every(function (valor) {
+        return Number(valor) === 0;
+      })
+      ? 0
+      : null;
+  }
+
+  /**
+   * Média geral mostrada no resumo. Com backend atualizado, vem pronta; se ele
+   * ainda estiver desatualizado, todas as matérias zeradas também fecham a
+   * média geral em 0.
+   */
+  function mediaGeralExibida(aluno) {
+    if (!aluno) return null;
+    if (
+      aluno.mediaGeral !== null &&
+      aluno.mediaGeral !== undefined &&
+      aluno.mediaGeral !== ''
+    ) {
+      return aluno.mediaGeral;
+    }
+    var valores = Object.keys(aluno.materias || {})
+      .map(function (chave) {
+        return mediaFinalExibida(aluno.materias[chave]);
+      })
+      .filter(function (valor) {
+        return (
+          valor !== null && valor !== undefined && isFinite(Number(valor))
+        );
+      });
+    return valores.length &&
+      valores.every(function (valor) {
+        return Number(valor) === 0;
+      })
+      ? 0
+      : null;
+  }
+
+  function tituloBimestre(calculo) {
+    if (!calculo) return '';
+    var faltante =
+      (Number(calculo.pesoTotal) || 0) -
+      (Number(calculo.pesoConsiderado) || 0);
+    return faltante > 0.05
+      ? 'Falta ' + formatarPercentual(faltante) +
+        ' do peso — nota em falta conta 0'
+      : 'Todos os pesos lançados';
+  }
+
+  /** Bimestres realmente fechados, para o selo "parcial" não mentir. */
+  function bimestresCompletos(bimestres) {
+    return Object.keys(bimestres || {}).filter(function (chave) {
+      return !!(bimestres[chave] && bimestres[chave].completo);
+    }).length;
   }
 
   function formatarPercentual(valor) {

@@ -257,6 +257,16 @@ var NotasTab = (function () {
     var pesoCoberto = Number(media.pesoConsiderado) || 0;
     var bruto = media.mediaAutomatica;
 
+    // Backend atual já publica o valor com o zero aplicado. Com backend
+    // antigo (sem esse campo), a conta abaixo faz o mesmo no navegador.
+    if (
+      media.mediaComZeroExata !== null &&
+      media.mediaComZeroExata !== undefined
+    ) {
+      var pronta = Number(media.mediaComZeroExata);
+      return isFinite(pronta) ? pronta : 0;
+    }
+
     if (!(pesoTotal > 0)) {
       // Sem avaliação cadastrada: só o que já existir, sem invenção.
       return bruto !== null && bruto !== undefined && isFinite(Number(bruto))

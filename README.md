@@ -179,11 +179,11 @@ Não escolha a pasta `/docs`: ela guarda a fonte do guia e não é versionada.
   Google Sheets, com modelo de planilha pronto em `modelos/`.
 - Avaliações ilimitadas por matéria e bimestre, com pesos em `%`.
 - Média ponderada do bimestre e média final pela média aritmética dos bimestres
-  com notas (o “quinto conceito”).
+  com avaliação cadastrada, com nota em falta valendo 0 (o “quinto conceito”).
 - Médias editáveis: clique na média do bimestre ou na média final para digitar
   um valor manual; em branco, o sistema volta ao cálculo automático.
-- Boletim por matéria e resumo geral, com indicadores de resultado parcial e
-  impressão.
+- Boletim por matéria e resumo geral, com nota em falta valendo 0 nas médias,
+  indicadores de resultado parcial e impressão.
 - Aba **Notas** com média por aluno já contando **nota em falta como 0** (o
   peso do que ainda não foi lançado entra na conta; sem nota nenhuma em
   bimestre com avaliação, a célula mostra 0,0), linha “Média da turma”

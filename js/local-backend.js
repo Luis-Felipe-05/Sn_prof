@@ -197,9 +197,18 @@ var LocalBackend = (function () {
     });
 
     var exata = pesoConsiderado > 0 ? somaPonderada / pesoConsiderado : null;
+
+    // Mesma regra do backend do Apps Script: nota em falta vale 0, então o
+    // peso de toda avaliação cadastrada entra no denominador. `media` segue
+    // sendo a média dos pesos lançados; o campo com zero alimenta Notas e
+    // Recuperação. Sem avaliação cadastrada, não há o que zerar.
+    var comZeroExata = pesoTotal > 0 ? somaPonderada / pesoTotal : null;
+
     return {
       media: exata === null ? null : arredondar1(exata),
       mediaExata: exata,
+      mediaComZero: comZeroExata === null ? null : arredondar1(comZeroExata),
+      mediaComZeroExata: comZeroExata,
       pesoConsiderado: arredondar1(pesoConsiderado),
       pesoTotal: arredondar1(pesoTotal),
       lancamentos: lancamentos,
@@ -221,6 +230,9 @@ var LocalBackend = (function () {
     var resultado = {
       media: base.media === undefined ? null : base.media,
       mediaExata: base.mediaExata === undefined ? null : base.mediaExata,
+      mediaComZero: base.mediaComZero === undefined ? null : base.mediaComZero,
+      mediaComZeroExata:
+        base.mediaComZeroExata === undefined ? null : base.mediaComZeroExata,
       mediaAutomatica: base.media === undefined ? null : base.media,
       mediaAutomaticaExata: base.mediaExata === undefined ? null : base.mediaExata,
       manual: false,
@@ -235,9 +247,25 @@ var LocalBackend = (function () {
 
     resultado.media = arredondar1(Number(manual.valor));
     resultado.mediaExata = Number(manual.valor);
+    resultado.mediaComZero = arredondar1(Number(manual.valor));
+    resultado.mediaComZeroExata = Number(manual.valor);
     resultado.manual = true;
     resultado.completo = true;
     return resultado;
+  }
+
+  /**
+   * Valor do bimestre que entra na média final. Zero é valor, não ausência:
+   * com avaliação cadastrada, o bimestre entra como 0 mesmo sem nota lançada.
+   * Quem tem 0 em todos os bimestres fecha com média final 0 e o cálculo segue.
+   */
+  function valorParaFinal(calculo, avaliacoesDoBimestre) {
+    if (!calculo) return null;
+    var pronta = calculo.mediaComZeroExata;
+    if (pronta !== null && pronta !== undefined && isFinite(Number(pronta))) {
+      return Number(pronta);
+    }
+    return (avaliacoesDoBimestre || []).length ? 0 : null;
   }
 
   function calcularFinal(mediasExatas, manual) {
@@ -272,6 +300,106 @@ var LocalBackend = (function () {
     }
 
     return resultado;
+  }
+
+  /**
+   * Mesma garantia do backend do Apps Script: com avaliação cadastrada, todos
+   * os bimestres em zero publicam `mediaFinal` 0 — não campo vazio. Média manual
+   * não é alterada; sem avaliação nenhuma, continua sem valor.
+   */
+  function mediaFinalPublicada(final, bimestres) {
+    var media = final && final.media !== undefined ? final.media : null;
+    var exata = final && final.mediaExata !== undefined ? final.mediaExata : null;
+    var automatica =
+      final && final.mediaAutomatica !== undefined ? final.mediaAutomatica : null;
+
+    if (final && final.manual) {
+      return { media: media, exata: exata, automatica: automatica };
+    }
+
+    var comAvaliacao = BIMESTRES.filter(function (bimestre) {
+      var calculo = bimestres && bimestres[bimestre];
+      return (
+        !!calculo &&
+        (Number(calculo.totalAvaliacoes) > 0 || Number(calculo.pesoTotal) > 0)
+      );
+    });
+
+    // Zero em todos os bimestres com avaliação => campo `mediaFinal` = 0.
+    var todosZero =
+      comAvaliacao.length > 0 &&
+      comAvaliacao.every(function (bimestre) {
+        var valor = bimestres[bimestre].mediaComZeroExata;
+        return (
+          valor !== null &&
+          valor !== undefined &&
+          isFinite(Number(valor)) &&
+          Number(valor) === 0
+        );
+      });
+
+    var semMedia =
+      media === null || media === undefined || !isFinite(Number(media));
+
+    if (comAvaliacao.length > 0 && (todosZero || semMedia)) {
+      media = 0;
+      exata = 0;
+      automatica = 0;
+    }
+
+    return { media: media, exata: exata, automatica: automatica };
+  }
+
+  /**
+   * Mesma garantia do Apps Script: todas as matérias com avaliação em zero
+   * publicam `mediaGeral` 0 no resumo. Sem matéria avaliada, fica sem valor.
+   */
+  function mediaGeralPublicada(mediaGeral, porMateria, materias) {
+    var media =
+      mediaGeral && mediaGeral.media !== undefined ? mediaGeral.media : null;
+    var exata =
+      mediaGeral && mediaGeral.mediaExata !== undefined
+        ? mediaGeral.mediaExata
+        : null;
+    var automatica =
+      mediaGeral && mediaGeral.mediaAutomatica !== undefined
+        ? mediaGeral.mediaAutomatica
+        : null;
+
+    var comAvaliacao = (materias || []).filter(function (materia) {
+      var item = porMateria && porMateria[materia.id];
+      if (!item) return false;
+      return Object.keys(item.bimestres || {}).some(function (chave) {
+        var calculo = item.bimestres[chave];
+        return (
+          !!calculo &&
+          (Number(calculo.totalAvaliacoes) > 0 || Number(calculo.pesoTotal) > 0)
+        );
+      });
+    });
+
+    var todosZero =
+      comAvaliacao.length > 0 &&
+      comAvaliacao.every(function (materia) {
+        var valor = porMateria[materia.id].mediaFinalExata;
+        return (
+          valor !== null &&
+          valor !== undefined &&
+          isFinite(Number(valor)) &&
+          Number(valor) === 0
+        );
+      });
+
+    var semMedia =
+      media === null || media === undefined || !isFinite(Number(media));
+
+    if (comAvaliacao.length > 0 && (todosZero || semMedia)) {
+      media = 0;
+      exata = 0;
+      automatica = 0;
+    }
+
+    return { media: media, exata: exata, automatica: automatica };
   }
 
   function mediaDeValores(valores) {
@@ -1455,7 +1583,10 @@ var LocalBackend = (function () {
             )
           );
           bimestres[bimestre] = calculo;
-          mediasExatas.push(calculo.mediaExata);
+          // Zero entra na média final; só bimestre sem avaliação fica de fora.
+          mediasExatas.push(
+            valorParaFinal(calculo, avaliacoesPorBimestre[bimestre])
+          );
         });
         var final = calcularFinal(
           mediasExatas,
@@ -1470,13 +1601,15 @@ var LocalBackend = (function () {
         var todosCompletos = BIMESTRES.every(function (bimestre) {
           return bimestres[bimestre].completo;
         });
+        // Campo `mediaFinal`: todos os bimestres em zero => média final 0.
+        var mediaFinal = mediaFinalPublicada(final, bimestres);
         return {
           id: aluno.id,
           nome: aluno.nome,
           bimestres: bimestres,
-          mediaFinal: final.media,
-          mediaFinalExata: final.mediaExata,
-          mediaFinalAutomatica: final.mediaAutomatica,
+          mediaFinal: mediaFinal.media,
+          mediaFinalExata: mediaFinal.exata,
+          mediaFinalAutomatica: mediaFinal.automatica,
           mediaFinalManual: final.manual,
           finalCompleto: final.manual ? true : final.completo && todosCompletos,
           bimestresConsiderados: final.bimestresConsiderados,
@@ -1488,7 +1621,10 @@ var LocalBackend = (function () {
       BIMESTRES.forEach(function (bimestre) {
         mediasTurma[bimestre] = mediaDeValores(
           alunosBoletim.map(function (aluno) {
-            return aluno.bimestres[bimestre].mediaExata;
+            return valorParaFinal(
+              aluno.bimestres[bimestre],
+              avaliacoesPorBimestre[bimestre]
+            );
           })
         );
       });
@@ -1540,10 +1676,11 @@ var LocalBackend = (function () {
           var porBimestre = {};
           var mediasBimestres = [];
           BIMESTRES.forEach(function (bimestre) {
+            var avaliacoesDoBimestre = daMateria.filter(function (avaliacao) {
+              return Number(avaliacao.bimestre) === bimestre;
+            });
             var automatica = calcularBimestre(
-              daMateria.filter(function (avaliacao) {
-                return Number(avaliacao.bimestre) === bimestre;
-              }),
+              avaliacoesDoBimestre,
               porAluno[aluno.id] || {}
             );
             var calculo = aplicarManual(
@@ -1557,7 +1694,10 @@ var LocalBackend = (function () {
               )
             );
             porBimestre[bimestre] = calculo;
-            mediasBimestres.push(calculo.mediaExata);
+            // Zero entra na média final; só sem avaliação fica de fora.
+            mediasBimestres.push(
+              valorParaFinal(calculo, avaliacoesDoBimestre)
+            );
           });
           var final = calcularFinal(
             mediasBimestres,
@@ -1569,10 +1709,11 @@ var LocalBackend = (function () {
               0
             )
           );
+          var mediaFinal = mediaFinalPublicada(final, porBimestre);
           porMateria[materia.id] = {
-            mediaFinal: final.media,
-            mediaFinalExata: final.mediaExata,
-            mediaFinalAutomatica: final.mediaAutomatica,
+            mediaFinal: mediaFinal.media,
+            mediaFinalExata: mediaFinal.exata,
+            mediaFinalAutomatica: mediaFinal.automatica,
             mediaFinalManual: final.manual,
             completo: final.manual
               ? true
@@ -1583,16 +1724,21 @@ var LocalBackend = (function () {
             bimestresConsiderados: final.bimestresConsiderados,
             bimestres: porBimestre
           };
-          if (final.mediaExata !== null) mediasExatas.push(final.mediaExata);
+          if (mediaFinal.exata !== null) mediasExatas.push(mediaFinal.exata);
         });
 
         var mediaGeral = calcularFinal(mediasExatas);
+        var geralPublicada = mediaGeralPublicada(
+          mediaGeral,
+          porMateria,
+          materias
+        );
         return {
           id: aluno.id,
           nome: aluno.nome,
           materias: porMateria,
-          mediaGeral: mediaGeral.media,
-          mediaGeralExata: mediaGeral.mediaExata,
+          mediaGeral: geralPublicada.media,
+          mediaGeralExata: geralPublicada.exata,
           completo:
             materias.length > 0 &&
             mediasExatas.length === materias.length &&
