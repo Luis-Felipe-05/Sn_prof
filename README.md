@@ -187,11 +187,13 @@ Não escolha a pasta `/docs`: ela guarda a fonte do guia e não é versionada.
 - Tela **Alunos de recuperação** agrupada **por matéria**: para cada matéria,
   quem ficou com a média do semestre abaixo de 5,0 — ((média 1º bim. + média
   2º bim.) ÷ 2) no 1º semestre e o mesmo com 3º e 4º no 2º —, com os casos de
-  recuperação nos dois semestres marcados. Calculado ao abrir a página (nada é
-  gravado) e com botão para gerar o PDF (um bloco por matéria). Os cartões do
-  topo contam alunos, não recuperações, e a legenda explica a contagem. Botão
-  em **Turmas → Dados de teste** cria duas turmas de exemplo (com aprovados e
-  com recuperação no 1º, no 2º e nos dois semestres) e o mesmo botão os apaga.
+  recuperação nos dois semestres marcados. **Nota em falta vale 0**: o peso da
+  avaliação sem nota conta como zero e a conta segue normalmente (aluno sem
+  nota nenhuma aparece com 0,0). Calculado ao abrir a página (nada é gravado) e
+  com botão para gerar o PDF (um bloco por matéria). Os cartões do topo contam
+  alunos, não recuperações, e a legenda explica a contagem. Botão em **Turmas →
+  Dados de teste** cria duas turmas de exemplo (com aprovados e com recuperação
+  no 1º, no 2º e nos dois semestres) e o mesmo botão os apaga.
 - Backup semanal em JSON no Google Drive e restauração de emergência pela
   interface, com backup de segurança automático antes de restaurar.
 - Chave de acesso que bloqueia qualquer leitura ou gravação sem ela — inclusive

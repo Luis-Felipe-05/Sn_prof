@@ -11,6 +11,11 @@
  * A média de um bimestre só considera as notas da matéria; um aluno pode ficar
  * em recuperação no 1º semestre, no 2º ou nos dois — nesta realidade por
  * matéria também —, mesmo estando aprovado na média geral da turma.
+ *
+ * Nota em falta vale 0: se o professor criou a avaliação e não lançou a nota
+ * de um aluno, o peso dela entra como zero e a conta segue normalmente. O
+ * bimestre que não tem nenhuma avaliação é o único que continua fora — não há
+ * avaliação para valer 0.
  */
 var RecuperacaoView = (function () {
   var LIMITE_REQUISICOES = 4;
@@ -25,9 +30,17 @@ var RecuperacaoView = (function () {
   }
 
   /**
-   * Média de um bimestre para um aluno: médias das matérias que têm nota.
-   * Com `materiaId`, só o cálculo daquela matéria entra (modo “por matéria”).
-   * `parcial` quando alguma matéria tem avaliação lançada sem nota completa.
+   * Média de um bimestre para um aluno.
+   *
+   * Regra: **nota em falta vale 0**. A avaliação existe e a nota não, então o
+   * peso dela entra no denominador da média ponderada, começa-se de zero e o
+   * cálculo segue até a média do semestre e até a lista. O único caso que
+   * continua de fora é o bimestre sem nenhuma avaliação cadastrada: sem
+   * avaliação não há o que considerar 0.
+   *
+   * `parcial` marca o aluno com alguma avaliação ainda sem nota: o número já
+   * está fechado (faltando vale 0), mas o professor precisa ver que lançar a
+   * nota pode elevá-lo.
    */
   function mediaDeBimestre(aluno, bimestre, materiaId) {
     var valores = [];
@@ -43,16 +56,29 @@ var RecuperacaoView = (function () {
 
       var avaliacoes = Number(calculo.totalAvaliacoes) || 0;
       var lancadas = Number(calculo.lancamentos) || 0;
-      if (avaliacoes > 0 && lancadas < avaliacoes) parcial = true;
+      var pesoTotal = Number(calculo.pesoTotal) || 0;
+      var pesoCoberto = Number(calculo.pesoConsiderado) || 0;
 
-      var valor = calculo.mediaExata;
-      if (valor === null || valor === undefined || !isFinite(Number(valor))) {
-        // Matéria sem avaliação neste bimestre (ou sem nota nenhuma) fica de
-        // fora: ela não entra na média do bimestre.
-        if (avaliacoes > 0) parcial = true;
+      // Sem avaliação cadastrada neste bimestre não há nota a zerar: ela
+      // fica de fora e o semestre depende dos outros bimestres.
+      if (!(avaliacoes > 0) && !(pesoTotal > 0)) return;
+      if (lancadas < avaliacoes || pesoCoberto < pesoTotal) parcial = true;
+
+      // Média manual digitada pelo professor vale como foi digitada.
+      var manual = Number(calculo.mediaExata);
+      if (calculo.manual && isFinite(manual)) {
+        valores.push(manual);
         return;
       }
-      valores.push(Number(valor));
+
+      var exata = Number(calculo.mediaExata);
+      if (!isFinite(exata)) exata = 0; // nenhuma nota lançada: tudo zero.
+      if (pesoTotal > 0) {
+        // O lançado já vem ponderado só pelos pesos com nota; repondera por
+        // TODO o peso do bimestre — os pesos sem nota estão como 0.
+        exata = exata * Math.min(pesoCoberto, pesoTotal) / pesoTotal;
+      }
+      valores.push(exata);
     });
 
     if (!valores.length) {
@@ -757,9 +783,10 @@ var RecuperacaoView = (function () {
 
   function semNotasFrase(calc) {
     if (!calc.semNotas) return '';
-    return '; ' + calc.semNotas + ' ainda não ' +
-      (Number(calc.semNotas) === 1 ? 'tem notas' : 'têm notas') +
-      ' suficientes para serem avaliados';
+    var quantidade = Number(calc.semNotas);
+    return '; ' + quantidade + ' ' +
+      (quantidade === 1 ? 'ainda não tem' : 'ainda não têm') +
+      ' nenhuma avaliação cadastrada (sem avaliação, não há nota a zerar)';
   }
 
   function rodapeCalculo(calc) {
@@ -771,7 +798,9 @@ var RecuperacaoView = (function () {
         '÷ 2 — e abaixo de 5,0 o aluno fica de recuperação naquele conteúdo. ' +
         'Quem aparece nos dois semestres é porque a mesma matéria ficou ' +
         'abaixo de 5,0 nos dois; um aluno pode estar aprovado na média geral ' +
-        'e ainda assim de recuperação em uma matéria.' +
+        'e ainda assim de recuperação em uma matéria. Nota que o professor ' +
+        'ainda não lançou vale <strong>0</strong> — o peso da avaliação ' +
+        'entra assim mesmo e a conta segue normalmente.' +
         semNotasFrase(calc) + '.' +
       '</div>'
     );
@@ -850,8 +879,10 @@ var RecuperacaoView = (function () {
             partes.join('') +
             ' Os cálculos existem só nesta página, enquanto ela estiver ' +
             'aberta: clique em <strong>Atualizar</strong> depois de lançar ' +
-            'novas notas. Valores marcados com <strong>parcial</strong> ' +
-            'usam notas incompletas.' +
+            'novas notas. Nota em falta vale <strong>0</strong>: o peso da ' +
+            'avaliação entra assim mesmo e a conta segue normalmente. ' +
+            '<strong>Parcial</strong> marca o aluno com alguma avaliação ' +
+            'ainda sem nota lançada.' +
           '</div>' +
         '</div>' +
       '</div>'
@@ -1003,7 +1034,7 @@ var RecuperacaoView = (function () {
       { tamanho: 9, negrito: true, cor: '#4f46e5' });
 
     // A nota do “*” mora aqui em cima: nem corretor a joga para outra página.
-    doc.texto(802, topo + 42, '* média com notas incompletas', {
+    doc.texto(802, topo + 42, '* nota em falta contou 0', {
       tamanho: 7.5,
       cor: '#64748b',
       alinhamento: 'direita'
