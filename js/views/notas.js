@@ -243,17 +243,62 @@ var NotasTab = (function () {
   }
 
   /**
+   * Média automática do bimestre com a **nota em falta contando 0**.
+   *
+   * Mesma regra da tela de recuperação: o peso da nota que o professor ainda
+   * não lançou entra mesmo assim em `pesoTotal`; na prática, `média do
+   * lançado × peso lançado ÷ peso total`. Aluno sem nota nenhuma (com
+   * avaliação cadastrada) resulta em 0, e `null` só quando não existe
+   * nenhuma avaliação no bimestre — aí não há o que zerar.
+   */
+  function automaticaComZero(media) {
+    if (!media) return null;
+    var pesoTotal = Number(media.pesoTotal) || 0;
+    var pesoCoberto = Number(media.pesoConsiderado) || 0;
+    var bruto = media.mediaAutomatica;
+
+    if (!(pesoTotal > 0)) {
+      // Sem avaliação cadastrada: só o que já existir, sem invenção.
+      return bruto !== null && bruto !== undefined && isFinite(Number(bruto))
+        ? Number(bruto)
+        : null;
+    }
+
+    // Todo o lance sem nota é 0; sem nota nenhuma a média também é 0.
+    if (bruto === null || bruto === undefined || bruto === '') return 0;
+    var exata = Number(bruto);
+    if (!isFinite(exata)) exata = 0;
+    return (exata * Math.min(pesoCoberto, pesoTotal)) / pesoTotal;
+  }
+
+  /** O valor que a célula da média mostra (manual vale como digitado). */
+  function mediaExibida(media) {
+    if (!media) return null;
+    if (media.manual) {
+      var manual = media.media;
+      return manual === null || manual === undefined || manual === ''
+        ? null
+        : Number(manual);
+    }
+    return automaticaComZero(media);
+  }
+
+  /**
    * Célula da média efetiva do bimestre.
    *
    * É um botão: clicar abre o modal de média manual. Sem valor manual vale o
-   * cálculo automático (com o selo "parcial" quando faltam notas).
+   * cálculo automático já com a nota em falta valendo 0 (com o selo
+   * "parcial" quando ainda faltam notas — lançar a nota que falta pode subir
+   * a média).
    */
   function celulaMedia(grade, aluno, media) {
-    var valor = media ? media.media : null;
+    var valor = mediaExibida(media);
     var vazia = valor === null || valor === undefined;
     var manual = !!(media && media.manual);
     var parcial = !vazia && !manual && !media.completo;
-    var automatica = media ? media.mediaAutomatica : null;
+    var automatica = automaticaComZero(media);
+    var pesoTotal = Number(media && media.pesoTotal) || 0;
+    var pesoCoberto = Number(media && media.pesoConsiderado) || 0;
 
     var titulo;
     if (manual) {
@@ -262,11 +307,14 @@ var NotasTab = (function () {
           ? ''
           : ' · cálculo automático: ' + Ui.formatarNota(automatica));
     } else if (vazia) {
-      titulo = 'Sem notas lançadas. Clique para digitar uma média manual.';
+      titulo = 'Nenhuma avaliação neste bimestre. ' +
+        'Clique para digitar uma média manual.';
     } else {
-      titulo = 'Peso lançado: ' + formatarPercentual(media.pesoConsiderado) +
-        ' de ' + formatarPercentual(media.pesoTotal) +
-        ' · clique para editar a média';
+      var faltante = pesoTotal - pesoCoberto;
+      titulo = faltante > 0.05
+        ? 'Falta ' + formatarPercentual(faltante) + ' do peso — nota em ' +
+          'falta conta 0 · clique para editar a média'
+        : 'Todos os pesos lançados · clique para editar a média';
     }
 
     return (
@@ -542,27 +590,35 @@ var NotasTab = (function () {
     return null;
   }
 
+  /**
+   * Média de uma avaliação na linha "Média da turma", com a nota em falta de
+   * cada aluno valendo 0: o denominador são TODOS os alunos, não só quem já
+   * tem nota. Sem nota lançada em ninguém, a média é 0,0 — e não mais «—».
+   */
   function mediaDaAvaliacao(grade, avaliacaoId) {
-    var valores = [];
-    grade.alunos.forEach(function (aluno) {
+    var alunos = grade.alunos || [];
+    if (!alunos.length) return '—';
+
+    var soma = 0;
+    alunos.forEach(function (aluno) {
       var chave = aluno.id + ':' + avaliacaoId;
-      if (Object.prototype.hasOwnProperty.call(grade.notas, chave)) {
-        var numero = Number(grade.notas[chave]);
-        if (isFinite(numero)) valores.push(numero);
-      }
+      var bruto = Object.prototype.hasOwnProperty.call(grade.notas, chave)
+        ? grade.notas[chave]
+        : null;
+      if (bruto === null || bruto === undefined || bruto === '') return; // vale 0
+      var numero = Number(bruto);
+      if (isFinite(numero)) soma += numero;
     });
-    if (!valores.length) return '—';
-    var media = valores.reduce(function (soma, valor) {
-      return soma + valor;
-    }, 0) / valores.length;
+
+    var media = soma / alunos.length;
     return Ui.formatarNota(Math.round(media * 10) / 10);
   }
 
+  /** Média da turma já contando o zero da nota em falta, célula a célula. */
   function mediaDaTurma(grade) {
-    var valores = grade.alunos
+    var valores = (grade.alunos || [])
       .map(function (aluno) {
-        var media = grade.medias[aluno.id];
-        return media ? media.media : null;
+        return mediaExibida(grade.medias[aluno.id]);
       })
       .filter(function (valor) {
         return valor !== null && valor !== undefined;

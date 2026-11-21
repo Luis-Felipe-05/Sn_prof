@@ -184,6 +184,10 @@ Não escolha a pasta `/docs`: ela guarda a fonte do guia e não é versionada.
   um valor manual; em branco, o sistema volta ao cálculo automático.
 - Boletim por matéria e resumo geral, com indicadores de resultado parcial e
   impressão.
+- Aba **Notas** com média por aluno já contando **nota em falta como 0** (o
+  peso do que ainda não foi lançado entra na conta; sem nota nenhuma em
+  bimestre com avaliação, a célula mostra 0,0), linha “Média da turma”
+  contando aluno sem nota como zero e a média manual intocada.
 - Tela **Alunos de recuperação** agrupada **por matéria**: para cada matéria,
   quem ficou com a média do semestre abaixo de 5,0 — ((média 1º bim. + média
   2º bim.) ÷ 2) no 1º semestre e o mesmo com 3º e 4º no 2º —, com os casos de
