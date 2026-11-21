@@ -11,20 +11,46 @@ var TurmasView = (function () {
       materias: ['Matemática', 'Português'],
       alunos: [
         'Ana Beatriz Souza', 'Bruno Carvalho', 'Carla Mendes',
-        'Diego Ferreira', 'Elisa Rocha', 'Felipe Nunes'
+        'Diego Ferreira', 'Elisa Rocha', 'Felipe Nunes',
+        'Gabriela Lima'
       ]
     },
     {
       nome: '[TESTE] 8º Ano B',
       materias: ['Ciências', 'História'],
       alunos: [
-        'Gabriela Lima', 'Henrique Alves', 'Isabela Martins',
-        'João Pedro Costa', 'Karina Oliveira', 'Lucas Pereira'
+        'Henrique Alves', 'Isabela Martins', 'João Pedro Costa',
+        'Karina Oliveira', 'Lucas Pereira', 'Marcelo Rodrigues',
+        'Natália Souza'
       ]
     }
   ];
 
-  var NOTAS_BASE = [8.0, 6.5, 9.5, 7.0, 4.5, 10.0];
+  /**
+   * Um perfil por aluno, na mesma ordem dos nomes acima. Cada perfil guarda a
+   * média alvo de cada bimestre em cada matéria, de modo a cobrir os casos da
+   * tela de recuperação (média geral e por matéria):
+   *
+   *   [0] aprovado
+   *   [1] recuperação no 1º semestre (com uma nota em falta → “parcial”)
+   *   [2] recuperação só na 1ª matéria (aprovado na média geral)
+   *   [3] recuperação no 2º semestre
+   *   [4] recuperação nos dois semestres
+   *   [5] exatamente 5,0 no 1º semestre → fica fora, pois o critério é “< 5”
+   *      (nesse perfil as duas notas do bimestre são idênticas, para a
+   *      média fechar exatamente 5,0)
+   *   [6] nenhuma nota lançada → não pode ser avaliado
+   */
+  var PERFIS_TESTE = [
+    { medias: [[8.0, 8.5, 9.0, 8.5], [8.5, 9.0, 8.5, 9.0]] },
+    { medias: [[4.0, 4.0, 8.0, 9.0], [4.5, 4.0, 8.5, 8.0]],
+      falta: { materia: 0, bimestre: 1, avaliacao: 1 } },
+    { medias: [[4.0, 5.0, 9.0, 8.0], [8.0, 8.5, 8.5, 9.0]] },
+    { medias: [[7.0, 7.5, 4.0, 4.5], [7.5, 7.0, 4.5, 4.0]] },
+    { medias: [[3.0, 4.0, 4.5, 3.0], [4.5, 4.0, 4.0, 4.0]] },
+    { medias: [[5.0, 5.0, 6.0, 6.5], [5.0, 5.0, 6.0, 6.5]], exata: true },
+    { semNotas: true }
+  ];
 
   function render(container) {
     var anos = Estado.anosDisponiveis();
@@ -436,12 +462,47 @@ var TurmasView = (function () {
         ];
   }
 
-  function notaDeTeste(indiceAluno, indiceMateria, bimestre, indiceAvaliacao) {
-    var valor = NOTAS_BASE[(indiceAluno + indiceMateria) % NOTAS_BASE.length];
-    valor += (bimestre - 1) * 0.5;
-    valor += indiceAvaliacao === 0 ? 0.5 : -0.5;
-    valor = Math.round(valor * 10) / 10;
-    return Math.max(0, Math.min(10, valor));
+  function notaDeTeste(
+    perfil,
+    indiceMateria,
+    bimestre,
+    indiceAvaliacao,
+    avaliacoes
+  ) {
+    var medias = perfil.medias;
+    var alvo = medias[indiceMateria % medias.length][bimestre - 1];
+    var pesos = avaliacoes.map(function (avaliacao) {
+      return Number(avaliacao.peso) || 0;
+    });
+    var pesosTotal = pesos.reduce(function (soma, peso) {
+      return soma + peso;
+    }, 0);
+    var quantidade = pesos.length || 1;
+    var pesoAtual = pesos[indiceAvaliacao] || 1;
+    // Ligeira diferença entre as avaliações do bimestre que, ponderada,
+    // devolve exatamente a média alvo do perfil. O perfil `exata` mora na
+    // borda do critério (5,0), então nessa caso as notas ficam iguais para a
+    // média fechar redondinha.
+    if (perfil.exata) {
+      return Math.max(0, Math.min(10, alvo));
+    }
+    var valor = alvo + 0.4 * (pesosTotal / (quantidade * pesoAtual) - 1);
+    return Math.round(Math.max(0, Math.min(10, valor)) * 10) / 10;
+  }
+
+  /** Uma nota lançada de propósito só para exercitar o marcador “parcial”. */
+  function faltaDeNota(perfil, indiceMateria, bimestre, indiceAvaliacao) {
+    var falta = perfil.falta;
+    return (
+      !!falta &&
+      falta.materia === indiceMateria &&
+      falta.bimestre === bimestre &&
+      falta.avaliacao === indiceAvaliacao
+    );
+  }
+
+  function perfilDoAluno(indice) {
+    return PERFIS_TESTE[indice % PERFIS_TESTE.length];
   }
 
   function abrirDadosTeste() {
@@ -458,9 +519,11 @@ var TurmasView = (function () {
         '<li><strong>' + TURMAS_TESTE.length + ' turmas</strong> marcadas com ' +
           '<code>[TESTE]</code></li>' +
         '<li><strong>' + porTurma + ' alunos</strong> em cada turma</li>' +
-        '<li><strong>2 matérias</strong> por turma, com avaliações no 1º e 2º ' +
-          'bimestres</li>' +
-        '<li><strong>Notas variadas</strong>, incluindo alunos abaixo da média</li>' +
+        '<li><strong>2 matérias</strong> por turma, com avaliações nos ' +
+          'quatro bimestres</li>' +
+        '<li>Perfis que cobrem <strong>aprovados, recuperação no 1º ' +
+          'semestre, no 2º semestre, nos dois e só em uma matéria</strong> ' +
+          'além de média exatamente 5,0 e aluno sem notas</li>' +
       '</ul>' +
       (temTeste
         ? '<div class="alert">' + Ui.icone('info') +
@@ -568,7 +631,13 @@ var TurmasView = (function () {
     var resumo = { turmas: 0, alunos: 0, avaliacoes: 0, notas: 0 };
     var totalNotas = 0;
     TURMAS_TESTE.forEach(function (modelo) {
-      totalNotas += modelo.materias.length * 4 * modelo.alunos.length;
+      var porBimestre = modelo.materias.length * avaliacoesDoBimestre(1).length;
+      modelo.alunos.forEach(function (nome, indice) {
+        var perfil = perfilDoAluno(indice);
+        if (perfil.semNotas) return;
+        totalNotas += porBimestre * 4;
+        if (perfil.falta) totalNotas -= 1;
+      });
     });
 
     for (var t = 0; t < TURMAS_TESTE.length; t += 1) {
@@ -596,7 +665,7 @@ var TurmasView = (function () {
       var materias = turma.materias || [];
       for (var m = 0; m < materias.length; m += 1) {
         var materia = materias[m];
-        for (var b = 1; b <= 2; b += 1) {
+        for (var b = 1; b <= 4; b += 1) {
           var avaliacoes = avaliacoesDoBimestre(b);
           for (var k = 0; k < avaliacoes.length; k += 1) {
             relatar(
@@ -613,10 +682,13 @@ var TurmasView = (function () {
             resumo.avaliacoes += 1;
 
             for (var i = 0; i < alunos.length; i += 1) {
+              var perfil = perfilDoAluno(i);
+              if (perfil.semNotas) continue;
+              if (faltaDeNota(perfil, m, b, k)) continue;
               await Api.salvarNota({
                 avaliacaoId: avaliacao.id,
                 alunoId: alunos[i].id,
-                valor: notaDeTeste(i, m, b, k)
+                valor: notaDeTeste(perfil, m, b, k, avaliacoes)
               });
               resumo.notas += 1;
               if (resumo.notas % 8 === 0 || resumo.notas === totalNotas) {
@@ -644,6 +716,9 @@ var TurmasView = (function () {
   return {
     render: render,
     abrirFormulario: abrirFormulario,
-    excluirTurma: excluirTurma
+    excluirTurma: excluirTurma,
+    // Também aberto pela aba "Alunos de recuperação", quando não existe
+    // nenhum aluno para analisar.
+    abrirDadosTeste: abrirDadosTeste
   };
 })();
