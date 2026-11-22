@@ -9,37 +9,99 @@
 @media (max-width: 900px) {
   .app-shell { flex-direction: column; }
   .sidebar {
-    width: 100%; flex: none; height: auto; position: static;
-    padding: 13px 16px; flex-direction: row; align-items: center; gap: 18px;
+    width: 100%; max-width: 100%; flex: none; height: auto; position: static;
+    padding: 13px 16px; flex-direction: row; align-items: center; gap: 14px;
+    overflow-x: auto; scrollbar-width: none;
   }
-  .brand { padding: 0; }
+  .sidebar::-webkit-scrollbar { display: none; }
+  .brand { padding: 0; flex: 0 0 auto; min-width: 0; }
   .brand-sub, .nav-label, .sidebar-footer { display: none; }
-  .nav { flex-direction: row; margin-left: auto; gap: 4px; }
-  .nav-item { width: auto; padding: 9px 12px; }
-  .topbar { display: flex; }
+  .nav {
+    flex-direction: row; flex: 1 1 auto; min-width: 0;
+    margin-left: auto; gap: 4px;
+    overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch;
+  }
+  .nav::-webkit-scrollbar { display: none; }
+  .nav-item {
+    width: auto; padding: 9px 12px; flex: 0 0 auto; white-space: nowrap;
+  }
+  .topbar { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 14px; }
+  .topbar > * { min-width: 0; }
   .content { padding: 22px 18px 40px; }
   .notas-layout { grid-template-columns: 1fr; }
+  .notas-layout, .notas-layout > * { min-width: 0; }
   .split { grid-template-columns: 1fr; }
+
+  /* Contenção de largura: tabelas e cards nunca empurram a página. */
+  .card, .table-wrap, .est-table-wrap, .grid-scroll { min-width: 0; max-width: 100%; }
+  .grid-scroll { overscroll-behavior-x: contain; }
+  .grade-table { width: max-content; min-width: 100%; }
+  .modal { max-width: 100%; }
+  .modal-body, .modal-body > * { min-width: 0; max-width: 100%; }
+  .modal-title, .card-title, .year-heading h2 { min-width: 0; overflow-wrap: anywhere; }
+  .card-header, .breadcrumb, .year-heading, .turma-card-footer,
+  .weight-total { flex-wrap: wrap; min-width: 0; }
+  .toolbar .field { min-width: min(160px, 100%); }
+  .materia-row .input, .input-group .input { min-width: 0; }
+  .input-group .suffix { flex: 0 0 auto; }
+  .segmented { max-width: 100%; overflow-x: auto; }
+  .stat, .kpi-card, .turma-kpi { min-width: 0; }
+  .stat-label, .stat-value, .kpi-label, .kpi-value,
+  .turma-kpi-value { overflow-wrap: anywhere; }
+  .nowrap { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 }
 
 @media (max-width: 680px) {
   .page-title { font-size: 23px; }
   .page-header { margin-bottom: 20px; }
+  .content { padding: 18px 14px 32px; }
   .turma-grid { grid-template-columns: 1fr; }
   .field-row { grid-template-columns: 1fr; }
   .modal-overlay { padding: 0; align-items: flex-end; }
-  .modal { max-height: 94vh; border-radius: 16px 16px 0 0; }
+  .modal { max-height: 94vh; max-height: 94dvh; border-radius: 16px 16px 0 0; }
+  .modal.larga { max-width: 100%; }
+  .modal-body { overscroll-behavior: contain; }
   .modal-header, .modal-body, .modal-footer {
     padding-left: 17px; padding-right: 17px;
   }
-  .table th, .table td { padding-left: 10px; padding-right: 10px; }
-  .brand-title { font-size: 14px; }
+  .table th, .table td { padding-left: 9px; padding-right: 9px; }
+  .row-actions, .inline-edit { flex-wrap: wrap; }
+  .inline-edit .input { min-width: 0; }
   .brand-mark { width: 36px; height: 36px; flex-basis: 36px; border-radius: 11px; }
   .brand-mark svg { width: 20px; height: 20px; }
+  .nav { margin-left: 0; }
   .nav-item { font-size: 13px; padding: 8px 9px; }
   .nav-item svg { width: 17px; height: 17px; flex-basis: 17px; }
-  .grade-table th:first-child, .grade-table td:first-child { min-width: 150px; }
+  .grade-table th:first-child, .grade-table td:first-child { min-width: 130px; }
+  .kpi-value { font-size: clamp(22px, 7vw, 27px); }
   .toast-stack { right: 10px; bottom: 10px; }
+}
+
+@media (max-width: 430px) {
+  .sidebar { padding: 9px 10px; gap: 6px; }
+  .brand-title { display: none; }
+  .nav { gap: 2px; }
+  .nav-item { font-size: 12.5px; padding: 8px; }
+  .content { padding: 16px 12px 28px; }
+  .card-header, .card-body, .card-footer { padding-left: 14px; padding-right: 14px; }
+  .modal-header, .modal-body, .modal-footer { padding-left: 14px; padding-right: 14px; }
+
+  .grade-table th:first-child, .grade-table td:first-child {
+    min-width: 120px; max-width: 180px;
+  }
+  .grade-input { width: 58px; max-width: 100%; padding-left: 2px; padding-right: 2px; }
+  .grade-table td { padding-left: 6px; padding-right: 6px; }
+
+  .table th { white-space: normal; }
+  .table td { overflow-wrap: anywhere; }
+  .est-table th { white-space: normal; }
+  .est-table th, .est-table td { padding: 8px; }
+  .est-table .mini-bar { display: none; }
+  .est-table .name { overflow-wrap: anywhere; }
+
+  .dist-label { width: 52px; flex-basis: 52px; }
+  .dist-count { width: 28px; flex-basis: 28px; }
+  .toast-stack { max-width: calc(100vw - 20px); }
 }
 
 @media print {
